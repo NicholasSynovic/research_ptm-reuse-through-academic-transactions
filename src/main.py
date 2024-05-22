@@ -35,7 +35,7 @@ def main() -> None:
 
     st.write("Original Dataframe:")
 
-    # Printing initial DF
+    # Printing initial DF test commit comitt e there
     df = print_doi_df()
     st.dataframe(df)
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
 # streamlit run main.py
 # git stage -A
 # git commit -m "commit text here"
-#git commit -m "text --no-verify"
+# git commit -m "text --no-verify"
 
 # source env/bin/activate
 # deactivate
