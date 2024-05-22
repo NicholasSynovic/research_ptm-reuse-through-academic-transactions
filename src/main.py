@@ -5,16 +5,6 @@ import pandas as pd
 import streamlit as st
 from sqlalchemy import Engine, create_engine
 
-# Solution2 for reading in db into pd df
-# Goal: Read SQLite DB into Pandas DataFrame
-# pathToDB: str = "sqlite:///../nature/db/feedStorage/nature.db"
-# pathToDB: str = "../nature/db/feedStorage/nature.db"
-# dbConn: Engine = create_engine(url=pathToDB)
-# dbConn = sqlite3.Connection(database=pathToDB)
-# df: pd.DataFrame = pd.read_sql_query(sql="SELECT doi FROM entries", con=dbConn)
-# print(df)
-# quit()
-
 
 def main() -> None:
     st.title("DOI Search Engine")
@@ -27,17 +17,16 @@ def main() -> None:
     st.write("Original Dataframe:")
 
     # Printing initial DF
-    conn = sqlite3.Connection(
-        database="/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
-    )
+
+    pathToDB = "/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
+    conn = sqlite3.Connection(database=pathToDB)
+
     df = pd.read_sql_query("SELECT doi FROM entries", con=conn)
     st.dataframe(df)
     conn.close()
 
     # reading in entire sql db as pd df
-    conn = sqlite3.Connection(
-        database="/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
-    )
+    conn = sqlite3.Connection(database=pathToDB)
     sql_read_in = "SELECT * FROM entries"
     full_db = pd.read_sql(sql_read_in, conn)
     conn.close()
