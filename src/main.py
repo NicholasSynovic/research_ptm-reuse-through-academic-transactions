@@ -6,6 +6,25 @@ import streamlit as st
 from sqlalchemy import Engine, create_engine
 
 
+def print_doi_df():
+    pathToDB = "/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
+    sql_column_read_in = "SELECT doi FROM entries"
+
+    with sqlite3.connect(database=pathToDB) as conn:
+        df = pd.read_sql_query(sql_column_read_in, conn)
+    return df
+
+
+def convert_sqlDB_to_pdDF():
+    pathToDB = "/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
+    sql_read_in = "SELECT * FROM entries"
+
+    with sqlite3.connect(database=pathToDB) as conn:
+        full_db = pd.read_sql(sql_read_in, conn)
+    # with-structure managing context of closing conn
+    return full_db
+
+
 def main() -> None:
     st.title("DOI Search Engine")
     st.write(
@@ -17,19 +36,11 @@ def main() -> None:
     st.write("Original Dataframe:")
 
     # Printing initial DF
-
-    pathToDB = "/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
-    conn = sqlite3.Connection(database=pathToDB)
-
-    df = pd.read_sql_query("SELECT doi FROM entries", con=conn)
+    df = print_doi_df()
     st.dataframe(df)
-    conn.close()
 
     # reading in entire sql db as pd df
-    conn = sqlite3.Connection(database=pathToDB)
-    sql_read_in = "SELECT * FROM entries"
-    full_db = pd.read_sql(sql_read_in, conn)
-    conn.close()
+    full_db = convert_sqlDB_to_pdDF()
 
     # Enter button alignment CSS
     st.markdown(
@@ -90,6 +101,7 @@ if __name__ == "__main__":
 # streamlit run main.py
 # git stage -A
 # git commit -m "commit text here"
+#git commit -m "text --no-verify"
 
 # source env/bin/activate
 # deactivate
