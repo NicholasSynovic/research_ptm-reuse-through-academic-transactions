@@ -7,3 +7,6 @@ APP_AUTHORS: List[str] = [
     "Nicholas M. Synovic",
     "George K. Thiruvathukal",
 ]
+
+ERROR_DB_CONN: str = "Error connecting to {}"
+ERROR_DB_QUERYING: str = "Error querying {}"

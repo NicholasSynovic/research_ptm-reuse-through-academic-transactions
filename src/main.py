@@ -2,12 +2,20 @@ import sqlite3
 from pathlib import Path
 from typing import Literal
 
+import pandas
 import streamlit as st
+from pandas import DataFrame
 from sqlalchemy import Connection, Engine, create_engine, text
 from sqlalchemy.exc import DatabaseError, OperationalError
 from streamlit.delta_generator import DeltaGenerator
 
-from src import APP_AUTHORS, APP_DESCRIPTION, APP_TITLE
+from src import (
+    APP_AUTHORS,
+    APP_DESCRIPTION,
+    APP_TITLE,
+    ERROR_DB_CONN,
+    ERROR_DB_QUERYING,
+)
 from src.components import USER_HOME
 from src.components.filepicker import tk_FilePicker
 
@@ -21,24 +29,23 @@ def updateFilePathInputLabel() -> None:
 
 def validateDBPath() -> None:
     st.session_state["db_valid"] = False
-
-    errorMessage: str = f'Error connecting to {st.session_state["db_filepath_label"]}'
+    dbFilepath: str = st.session_state["db_filepath_label"]
 
     try:
         engine: Engine = create_engine(
             url=f'sqlite:///{st.session_state["db_filepath_label"]}',
         )
     except OperationalError:
-        st.error(errorMessage, icon="🚨")
+        st.error(ERROR_DB_CONN.format(dbFilepath), icon="🚨")
         return
     except DatabaseError:
-        st.error(errorMessage, icon="🚨")
+        st.error(ERROR_DB_CONN.format(dbFilepath), icon="🚨")
         return
     except sqlite3.OperationalError:
-        st.error(errorMessage, icon="🚨")
+        st.error(ERROR_DB_CONN.format(dbFilepath), icon="🚨")
         return
     except sqlite3.DatabaseError:
-        st.error(errorMessage, icon="🚨")
+        st.error(ERROR_DB_CONN.format(dbFilepath), icon="🚨")
         return
 
     try:
@@ -47,16 +54,16 @@ def validateDBPath() -> None:
             statement=text(text="SELECT name FROM sqlite_master WHERE type='table';")
         )
     except OperationalError:
-        st.error(errorMessage, icon="🚨")
+        st.error(ERROR_DB_QUERYING.format(dbFilepath), icon="🚨")
         return
     except DatabaseError:
-        st.error(errorMessage, icon="🚨")
+        st.error(ERROR_DB_QUERYING.format(dbFilepath), icon="🚨")
         return
     except sqlite3.OperationalError:
-        st.error(errorMessage, icon="🚨")
+        st.error(ERROR_DB_QUERYING.format(dbFilepath), icon="🚨")
         return
     except sqlite3.DatabaseError:
-        st.error(errorMessage, icon="🚨")
+        st.error(ERROR_DB_QUERYING.format(dbFilepath), icon="🚨")
         return
     else:
         st.session_state["db_valid"] = True
@@ -68,6 +75,23 @@ def validateDBPath() -> None:
         return
 
 
+def searchDatabase():
+    sqlQuery: str = "SELECT * FROM works WHERE doi LIKE ? LIMIT 10;"
+    doi: str | None = st.session_state["doi_query"]
+
+    if doi is None:
+        st.error(ERROR_DB_QUERYING.format(doi), icon="🚨")
+        return
+
+    dbConn: Engine = st.session_state["db_conn"]
+    df: DataFrame = pandas.read_sql_query(
+        sql=sqlQuery,
+        con=dbConn,
+        params=[doi],
+    )
+    st.dataframe(df)
+
+
 def createSessionState() -> None:
     if "db_filepath_label" not in st.session_state:
         st.session_state["db_filepath_label"] = USER_HOME
@@ -75,6 +99,8 @@ def createSessionState() -> None:
         st.session_state["db_valid"] = False
     if "db_conn" not in st.session_state:
         st.session_state["db_conn"] = create_engine(url="sqlite:///:memory:")
+    if "doi_query" not in st.session_state:
+        st.session_state["doi_query"] = "10.48550/arXiv.2404.14619"
 
 
 def buildPage() -> None:
@@ -120,11 +146,14 @@ def buildPage() -> None:
         with st.form(key="doi-search", clear_on_submit=False, border=True):
             doiInput: str | None = st.text_input(
                 "DOI Search Bar",
-                value="10.48550/arXiv.2404.14619",
+                value=st.session_state["doi_query"],
                 help='Input can be in the form of \
 "https://doi.org/10.48550/arXiv.2404.14619" or "10.48550/arXiv.2404.14619"',
             )
-            formSubmit: bool = st.form_submit_button(label="Search")
+            formSubmit: bool = st.form_submit_button(
+                label="Search",
+                on_click=searchDatabase,
+            )
 
 
 if __name__ == "__main__":
