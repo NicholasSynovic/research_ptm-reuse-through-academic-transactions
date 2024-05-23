@@ -1,18 +1,26 @@
 import sqlite3
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 import streamlit as st
-from sqlalchemy import Engine, create_engine
-from streamlit.runtime.uploaded_file_manager import UploadedFile
+from streamlit.delta_generator import DeltaGenerator
 
 from src import APP_AUTHORS, APP_DESCRIPTION, APP_TITLE
+from src.components import USER_HOME
+from src.components.filepicker import tk_FilePicker
 
 
-def debug_PrintFileStats(file: UploadedFile) -> None:
-    st.write(file.file_id)
-    st.write(file.name)
-    st.write(file)
+def updateFilePathInputLabel() -> None:
+    filePath: Path | Literal[False] = tk_FilePicker()
+
+    if filePath != False:
+        st.session_state["db_filepath_label"] = filePath
+
+
+def createSessionState() -> None:
+    if "db_filepath_label" not in st.session_state:
+        st.session_state["db_filepath_label"] = USER_HOME
 
 
 def buildPage() -> None:
@@ -25,26 +33,42 @@ def buildPage() -> None:
 
     st.markdown(body="## SQLite Database Picker")
     st.markdown(body="> Pick a SQLite3 database to utilize")
-    dbFile: UploadedFile | None = st.file_uploader(
-        label="SQLite3 Database Uploader",
-        type="db",
-        accept_multiple_files=False,
-        help="No database will be created or copied, however, the filename of \
-                the database will be used to establish a connection",
-        on_change=debug_PrintFileStats,
-    )
-
-    st.markdown(body="## DOI Search")
-    st.markdown(body="> Search for DOIs captured within our database")
-    with st.form(key="doi-search", clear_on_submit=False, border=True):
-        doiInput: str | None = st.text_input(
-            "DOI Search Bar",
-            value="10.48550/arXiv.2404.14619",
-            help='Input can be in the form of \
-"https://doi.org/10.48550/arXiv.2404.14619" or \
-"10.48550/arXiv.2404.14619"',
+    with st.container(border=True):
+        st.text_input(
+            label="Select an SQLite3 database file",
+            value=st.session_state["db_filepath_label"],
+            help='Use the "Select Database" button to open a file picker widget',
+            disabled=True,
         )
-        formSubmit: bool = st.form_submit_button(label="Search")
+        column1: DeltaGenerator
+        column2: DeltaGenerator
+        column1, column2 = st.columns(spec=2, gap="large")
+
+        with column1:
+            st.button(
+                label="Select Database",
+                use_container_width=True,
+                on_click=updateFilePathInputLabel,
+            )
+
+        with column2:
+            st.button(
+                label="Confirm Database Selection",
+                use_container_width=True,
+            )
+
+
+#     st.markdown(body="## DOI Search")
+#     st.markdown(body="> Search for DOIs captured within our database")
+#     with st.form(key="doi-search", clear_on_submit=False, border=True):
+#         doiInput: str | None = st.text_input(
+#             "DOI Search Bar",
+#             value="10.48550/arXiv.2404.14619",
+#             help='Input can be in the form of \
+# "https://doi.org/10.48550/arXiv.2404.14619" or \
+# "10.48550/arXiv.2404.14619"',
+#         )
+#         formSubmit: bool = st.form_submit_button(label="Search")
 
 
 def print_doi_df():
@@ -136,6 +160,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    createSessionState()
     buildPage()
 
 
