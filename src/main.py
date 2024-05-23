@@ -2,8 +2,9 @@ import sqlite3
 from pathlib import Path
 from typing import Literal
 
-import pandas as pd
 import streamlit as st
+from sqlalchemy import Connection, Engine, create_engine, text
+from sqlalchemy.exc import DatabaseError, OperationalError
 from streamlit.delta_generator import DeltaGenerator
 
 from src import APP_AUTHORS, APP_DESCRIPTION, APP_TITLE
@@ -18,9 +19,62 @@ def updateFilePathInputLabel() -> None:
         st.session_state["db_filepath_label"] = filePath
 
 
+def validateDBPath() -> None:
+    st.session_state["db_valid"] = False
+
+    errorMessage: str = f'Error connecting to {st.session_state["db_filepath_label"]}'
+
+    try:
+        engine: Engine = create_engine(
+            url=f'sqlite:///{st.session_state["db_filepath_label"]}',
+        )
+    except OperationalError:
+        st.error(errorMessage, icon="🚨")
+        return
+    except DatabaseError:
+        st.error(errorMessage, icon="🚨")
+        return
+    except sqlite3.OperationalError:
+        st.error(errorMessage, icon="🚨")
+        return
+    except sqlite3.DatabaseError:
+        st.error(errorMessage, icon="🚨")
+        return
+
+    try:
+        conn: Connection = engine.connect()
+        conn.execute(
+            statement=text(text="SELECT name FROM sqlite_master WHERE type='table';")
+        )
+    except OperationalError:
+        st.error(errorMessage, icon="🚨")
+        return
+    except DatabaseError:
+        st.error(errorMessage, icon="🚨")
+        return
+    except sqlite3.OperationalError:
+        st.error(errorMessage, icon="🚨")
+        return
+    except sqlite3.DatabaseError:
+        st.error(errorMessage, icon="🚨")
+        return
+    else:
+        st.session_state["db_valid"] = True
+        st.session_state["db_conn"] = engine
+
+    try:
+        conn.close()
+    except UnboundLocalError:
+        return
+
+
 def createSessionState() -> None:
     if "db_filepath_label" not in st.session_state:
         st.session_state["db_filepath_label"] = USER_HOME
+    if "db_valid" not in st.session_state:
+        st.session_state["db_valid"] = False
+    if "db_conn" not in st.session_state:
+        st.session_state["db_conn"] = create_engine(url="sqlite:///:memory:")
 
 
 def buildPage() -> None:
@@ -55,108 +109,22 @@ def buildPage() -> None:
             st.button(
                 label="Confirm Database Selection",
                 use_container_width=True,
+                on_click=validateDBPath,
             )
 
+    if st.session_state["db_valid"]:
+        st.divider()
 
-#     st.markdown(body="## DOI Search")
-#     st.markdown(body="> Search for DOIs captured within our database")
-#     with st.form(key="doi-search", clear_on_submit=False, border=True):
-#         doiInput: str | None = st.text_input(
-#             "DOI Search Bar",
-#             value="10.48550/arXiv.2404.14619",
-#             help='Input can be in the form of \
-# "https://doi.org/10.48550/arXiv.2404.14619" or \
-# "10.48550/arXiv.2404.14619"',
-#         )
-#         formSubmit: bool = st.form_submit_button(label="Search")
-
-
-def print_doi_df():
-    pathToDB = "/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
-    sql_column_read_in = "SELECT doi FROM entries"
-
-    with sqlite3.connect(database=pathToDB) as conn:
-        df = pd.read_sql_query(sql_column_read_in, conn)
-    return df
-
-
-def convert_sqlDB_to_pdDF():
-    pathToDB = "/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
-    sql_read_in = "SELECT * FROM entries"
-
-    with sqlite3.connect(database=pathToDB) as conn:
-        full_db = pd.read_sql(sql_read_in, conn)
-    # with-structure managing context of closing conn
-    return full_db
-
-
-def main() -> None:
-    st.title("DOI Search Engine")
-    st.write(
-        """
-    Filter for DOI of specific PTM ~ filter DOIs @ bottom
-    """
-    )
-
-    st.write("Original Dataframe:")
-
-    # Printing initial DF test commit comitt e there
-    df = print_doi_df()
-    st.dataframe(df)
-
-    # reading in entire sql db as pd df
-    full_db = convert_sqlDB_to_pdDF()
-
-    # Enter button alignment CSS
-    st.markdown(
-        """
-    <style>
-    .search-bar-container {
-        display: flex;
-        align-items: center;
-    }
-    .search-bar-container > div {
-        flex-grow: 1;
-    }
-    .search-bar-container button {
-        margin-left: 10px;
-    }
-    </style>
-    """,
-        unsafe_allow_html=True,
-    )
-
-    with st.form(key="search_form"):
-        st.markdown('<div class="search-bar-container">', unsafe_allow_html=True)
-
-        # columns = st.columns([1,1])
-        # with columns[0]:
-        input_search = st.text_input("Search through PTM DOIs here", "")
-
-        # with columns[1]:
-        submit_button = st.form_submit_button("Enter")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    if submit_button:
-        if input_search:
-            result = df.apply(
-                lambda row: row.astype(str).str.contains(input_search).any(), axis=1
+        st.markdown(body="## DOI Search")
+        st.markdown(body="> Search for DOIs captured within our database")
+        with st.form(key="doi-search", clear_on_submit=False, border=True):
+            doiInput: str | None = st.text_input(
+                "DOI Search Bar",
+                value="10.48550/arXiv.2404.14619",
+                help='Input can be in the form of \
+"https://doi.org/10.48550/arXiv.2404.14619" or "10.48550/arXiv.2404.14619"',
             )
-            filtered_df = full_db[result]
-
-            if not filtered_df.empty:
-                st.write("Search Results:")
-                st.dataframe(filtered_df)
-            else:
-                st.write("No result.")
-        else:
-            st.write("Please enter a search and then press Enter.")
-    else:
-        st.write("Enter a search query or possible DOI and press Enter.")
-
-    # Given a row from the SQL database, query a Neo4J graph
-    # Visualize relevant data
+            formSubmit: bool = st.form_submit_button(label="Search")
 
 
 if __name__ == "__main__":
