@@ -5,15 +5,24 @@ import pandas as pd
 import streamlit as st
 from sqlalchemy import Engine, create_engine
 
-# Solution2 for reading in db into pd df
-# Goal: Read SQLite DB into Pandas DataFrame
-# pathToDB: str = "sqlite:///../nature/db/feedStorage/nature.db"
-# pathToDB: str = "../nature/db/feedStorage/nature.db"
-# dbConn: Engine = create_engine(url=pathToDB)
-# dbConn = sqlite3.Connection(database=pathToDB)
-# df: pd.DataFrame = pd.read_sql_query(sql="SELECT doi FROM entries", con=dbConn)
-# print(df)
-# quit()
+
+def print_doi_df():
+    pathToDB = "/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
+    sql_column_read_in = "SELECT doi FROM entries"
+
+    with sqlite3.connect(database=pathToDB) as conn:
+        df = pd.read_sql_query(sql_column_read_in, conn)
+    return df
+
+
+def convert_sqlDB_to_pdDF():
+    pathToDB = "/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
+    sql_read_in = "SELECT * FROM entries"
+
+    with sqlite3.connect(database=pathToDB) as conn:
+        full_db = pd.read_sql(sql_read_in, conn)
+    # with-structure managing context of closing conn
+    return full_db
 
 
 def main() -> None:
@@ -26,21 +35,12 @@ def main() -> None:
 
     st.write("Original Dataframe:")
 
-    # Printing initial DF
-    conn = sqlite3.Connection(
-        database="/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
-    )
-    df = pd.read_sql_query("SELECT doi FROM entries", con=conn)
+    # Printing initial DF test commit comitt e there
+    df = print_doi_df()
     st.dataframe(df)
-    conn.close()
 
     # reading in entire sql db as pd df
-    conn = sqlite3.Connection(
-        database="/Users/fran-pellegrino/Library/CloudStorage/OneDrive-LoyolaUniversityChicago/Internship-Awards/LUC USRE 2024/Code/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/nature.db"
-    )
-    sql_read_in = "SELECT * FROM entries"
-    full_db = pd.read_sql(sql_read_in, conn)
-    conn.close()
+    full_db = convert_sqlDB_to_pdDF()
 
     # Enter button alignment CSS
     st.markdown(
@@ -101,6 +101,7 @@ if __name__ == "__main__":
 # streamlit run main.py
 # git stage -A
 # git commit -m "commit text here"
+# git commit -m "text --no-verify"
 
 # source env/bin/activate
 # deactivate
