@@ -1,16 +1,22 @@
-import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog
+from tkinter import Tk, filedialog
 from typing import Literal
 
 from pyfs import resolvePath
 
+from src.components import COMPONENT_TITLE, USER_HOME
+
 
 def tk_FilePicker() -> Path | Literal[False]:
-    root = tk.Tk()
+    root: Tk = Tk()
     root.withdraw()
 
-    fp: str = filedialog.askopenfilename()
+    root.geometry("1920x1080")
+
+    fp: str = filedialog.askopenfilename(
+        initialdir=USER_HOME,
+        title=COMPONENT_TITLE,
+    )
     if fp:
         root.destroy()
         return resolvePath(path=Path(fp))

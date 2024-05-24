@@ -5,7 +5,7 @@ from typing import Literal
 import pandas
 import streamlit as st
 from pandas import DataFrame
-from sqlalchemy import Connection, Engine, create_engine, text
+from sqlalchemy import Connection, Engine, TextClause, create_engine, text
 from sqlalchemy.exc import DatabaseError, OperationalError
 from streamlit.delta_generator import DeltaGenerator
 
@@ -76,8 +76,17 @@ def validateDBPath() -> None:
 
 
 def searchDatabase():
-    sqlQuery: str = "SELECT * FROM works WHERE doi LIKE ? LIMIT 10;"
-    doi: str | None = st.session_state["doi_query"]
+    doi: str | None = st.session_state["doi_search_bar"]
+
+    if doi is None:
+        st.error(
+            body=ERROR_DB_QUERYING.format(st.session_state["db_filepath_label"]),
+            icon="🚨",
+        )
+        st.session_state["doi_query_result"] = None
+        return
+
+    sqlQuery: str = f'SELECT * FROM works WHERE doi = "{doi}";'
 
     if doi is None:
         st.error(ERROR_DB_QUERYING.format(doi), icon="🚨")
@@ -87,9 +96,27 @@ def searchDatabase():
     df: DataFrame = pandas.read_sql_query(
         sql=sqlQuery,
         con=dbConn,
-        params=[doi],
     )
-    st.dataframe(df)
+
+    if df.empty:
+        st.warning(body="Query returned no results")
+        st.session_state["doi_query_result"] = None
+    else:
+        st.session_state["doi_query_result"] = df
+
+
+def configApp() -> None:
+    st.set_page_config(
+        page_title="PeaT RAT",
+        page_icon="🐀",
+        layout="centered",
+        initial_sidebar_state="auto",
+        # menu_items={
+        #     'Get Help': 'https://www.extremelycoolapp.com/help',
+        #     'Report a bug': "https://www.extremelycoolapp.com/bug",
+        #     'About': "# This is a header. This is an *extremely* cool app!"
+        # }
+    )
 
 
 def createSessionState() -> None:
@@ -101,9 +128,11 @@ def createSessionState() -> None:
         st.session_state["db_conn"] = create_engine(url="sqlite:///:memory:")
     if "doi_query" not in st.session_state:
         st.session_state["doi_query"] = "10.48550/arXiv.2404.14619"
+    if "doi_query_result" not in st.session_state:
+        st.session_state["doi_query_result"] = None
 
 
-def buildPage() -> None:
+def main() -> None:
     st.title(body=APP_TITLE)
     st.markdown(
         body=f"> {APP_DESCRIPTION}",
@@ -144,21 +173,26 @@ def buildPage() -> None:
         st.markdown(body="## DOI Search")
         st.markdown(body="> Search for DOIs captured within our database")
         with st.form(key="doi-search", clear_on_submit=False, border=True):
-            doiInput: str | None = st.text_input(
-                "DOI Search Bar",
+            st.text_input(
+                label="DOI Search Bar",
                 value=st.session_state["doi_query"],
+                key="doi_search_bar",
                 help='Input can be in the form of \
 "https://doi.org/10.48550/arXiv.2404.14619" or "10.48550/arXiv.2404.14619"',
             )
-            formSubmit: bool = st.form_submit_button(
+            st.form_submit_button(
                 label="Search",
                 on_click=searchDatabase,
             )
 
+        if st.session_state["doi_query_result"] is not None:
+            st.dataframe(st.session_state["doi_query_result"])
+
 
 if __name__ == "__main__":
+    configApp()
     createSessionState()
-    buildPage()
+    main()
 
 
 # streamlit run main.py
