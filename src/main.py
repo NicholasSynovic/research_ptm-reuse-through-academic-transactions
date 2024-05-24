@@ -99,7 +99,7 @@ def searchDatabase():
     )
 
     if df.empty:
-        st.warning(body="Query returned no results")
+        st.warning(body="Query returned no results", icon="👻")
         st.session_state["doi_query_result"] = None
     else:
         st.session_state["doi_query_result"] = df
