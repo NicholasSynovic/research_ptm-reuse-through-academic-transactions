@@ -1,6 +1,7 @@
 import sqlite3
 
 import pandas as pd
+from sqlite3 import Cursor
 
 OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
 conn = sqlite3.Connection(database=OA_file_path)
@@ -12,12 +13,9 @@ PMconn = sqlite3.Connection(database=PM_file_path)
 # OpenAlex database read-in and calculations
 def count_papers_in_OA():
     OA_DOI_column = "doi"
-    query = f"SELECT {OA_DOI_column} FROM works"
-    OA_doi_df = pd.read_sql_query(query, con=conn)
-
-    # # of unique papers in OA
-    OA_unique_paper_num = OA_doi_df[OA_DOI_column].nunique()
-    print("# of unique papers in OA db: ", OA_unique_paper_num)
+    query = f"SELECT COUNT(DISTINCT {OA_DOI_column}) FROM works"
+    cursor: Cursor = conn.execute(query)
+    print(cursor.fetchone()[0])
 
 
 # PeaTMOSS database read-in and calculations
