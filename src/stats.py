@@ -1,21 +1,14 @@
 import sqlite3
+from sqlite3 import Connection, Cursor
+from urllib.parse import urlparse
 
 import pandas as pd
-from sqlite3 import Cursor
-
-OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
-conn = sqlite3.Connection(database=OA_file_path)
-
-PM_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/PeaTMOSS.db"
-PMconn = sqlite3.Connection(database=PM_file_path)
 
 
-# OpenAlex database read-in and calculations
-def count_papers_in_OA():
-    OA_DOI_column = "doi"
-    query = f"SELECT COUNT(DISTINCT {OA_DOI_column}) FROM works"
+def count_papers_in_db(column: str, table: str, conn: Connection) -> int:
+    query = f"SELECT COUNT(DISTINCT {column}) FROM {table}"
     cursor: Cursor = conn.execute(query)
-    print(cursor.fetchone()[0])
+    return cursor.fetchone()[0]
 
 
 # PeaTMOSS database read-in and calculations
@@ -37,6 +30,16 @@ def generate_total_cites():
 
     total_cites = OA_works_df.shape[0]
     print("Total number of citations from any work to any other work: ", total_cites)
+
+
+def count_papers_per_journalPM(conn: Connection):
+    def extract_base_url(url):
+        parsed_url = urlparse(url)
+        return f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+    query = f"SELECT * FROM paper"
+    df = pd.read_sql_query(query, con=conn)
+    print(df["url"].apply(extract_base_url).value_counts())
 
 
 # unique PM papers in OA dataset
@@ -62,8 +65,19 @@ def generate_unique_PMpapers_OAdataset():
     print("total num of unique PM papers in OA dataset: ", num_common_titles)
 
 
+OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
+OAconn = sqlite3.Connection(database=OA_file_path)
+
+PM_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/PeaTMOSS.db"
+PMconn = sqlite3.Connection(database=PM_file_path)
+
 if __name__ == "__main__":
-    # generate_OA_stats()
-    # generate_PM_stats()
-    # generate_total_cites()
-    count_papers_in_OA()
+    find_unique_PMpapers_in_OA(PMconn)
+    print(
+        "PM database count: ",
+        count_papers_in_db(column="paper_id", table="model_to_paper", conn=PMconn),
+    )
+    print(
+        "OA database count: ",
+        count_papers_in_db(column="doi", table="works", conn=OAconn),
+    )
