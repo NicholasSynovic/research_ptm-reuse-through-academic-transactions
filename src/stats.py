@@ -56,17 +56,13 @@ def count_PMarxiv_papers_in_OA(PMconn: Connection, OAconn: Connection):
 
 
 def proportion_PM_papers_in_OA(PMconn: Connection):
-    query = f"SELECT * FROM paper"
-    PM_df: DataFrame = pd.read_sql_query(query, con=PMconn)
-
-    OA_query = f"SELECT oa_id, doi FROM works"
-    OA_df: Iterator[DataFrame] = pd.read_sql_query(
-        OA_query, con=OAconn, chunksize=10000
+    PMproportion = count_papers_in_db(
+        column="paper_id", table="model_to_paper", conn=PMconn
     )
+    OAproportion = count_papers_in_db(column="doi", table="works", conn=OAconn)
+    print("Proportion of PM papers in OA dataset: ", PMproportion / OAproportion)
 
-    common_unique_values = set(OA_df) & set(PM_df)
-    proportion = len(common_unique_values) / len(OA_df)
-    print("Proportion of PM papers in OA dataset: ", proportion)
+    # match dataframe values and divide that count by total in OA
 
 
 OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
@@ -78,6 +74,7 @@ PMconn = sqlite3.Connection(database=PM_file_path)
 if __name__ == "__main__":
     proportion_PM_papers_in_OA(PMconn)
     quit()
+
     print("PM papers in OA: ", count_PMarxiv_papers_in_OA(PMconn, OAconn))
     count_papers_per_journalPM(PMconn)
     print(
