@@ -13,16 +13,6 @@ def count_papers_in_db(column: str, table: str, conn: Connection) -> int:
     return cursor.fetchone()[0]
 
 
-# total citations across the board
-def generate_total_cites():
-    OA_works_column = "work"
-    query = f"SELECT {OA_works_column} FROM cites"
-    OA_works_df = pd.read_sql_query(query, con=conn)
-
-    total_cites = OA_works_df.shape[0]
-    print("Total number of citations from any work to any other work: ", total_cites)
-
-
 def count_papers_per_journalPM(conn: Connection):
     def extract_base_url(url):
         parsed_url = urlparse(url)
@@ -31,6 +21,10 @@ def count_papers_per_journalPM(conn: Connection):
     query = f"SELECT * FROM paper"
     df = pd.read_sql_query(query, con=conn)
     print(df["url"].apply(extract_base_url).value_counts())
+
+
+# function that creates and return dataframe without making changes and pass in as parameter to other functions, won't have to do
+# like query below over and over again
 
 
 def count_PMarxiv_papers_in_OA(PMconn: Connection, OAconn: Connection):
@@ -56,13 +50,22 @@ def count_PMarxiv_papers_in_OA(PMconn: Connection, OAconn: Connection):
 
 
 def proportion_PM_papers_in_OA(PMconn: Connection):
+    # num of unique PM papers in OA db LEFT OFF HERE ON SLIDDECK
     PMproportion = count_papers_in_db(
         column="paper_id", table="model_to_paper", conn=PMconn
     )
     OAproportion = count_papers_in_db(column="doi", table="works", conn=OAconn)
     print("Proportion of PM papers in OA dataset: ", PMproportion / OAproportion)
 
-    # match dataframe values and divide that count by total in OA
+
+# total citations across the board
+def generate_total_cites():
+    OA_works_column = "work"
+    query = f"SELECT {OA_works_column} FROM cites"
+    OA_works_df = pd.read_sql_query(query, con=conn)
+
+    total_cites = OA_works_df.shape[0]
+    print("Total number of citations from any work to any other work: ", total_cites)
 
 
 OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
