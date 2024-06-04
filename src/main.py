@@ -2,7 +2,7 @@ import sqlite3
 from pathlib import Path
 from typing import Literal
 
-import pandas
+import pandas as pd
 import streamlit as st
 from pandas import DataFrame
 from sqlalchemy import Connection, Engine, TextClause, create_engine, text
@@ -93,7 +93,7 @@ def searchDatabase():
         return
 
     dbConn: Engine = st.session_state["db_conn"]
-    df: DataFrame = pandas.read_sql_query(
+    df: DataFrame = pd.read_sql_query(
         sql=sqlQuery,
         con=dbConn,
     )
@@ -193,7 +193,6 @@ if __name__ == "__main__":
     configApp()
     createSessionState()
     main()
-
 
 # streamlit run main.py
 # git stage -A
