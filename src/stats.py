@@ -13,6 +13,7 @@ def count_papers_in_db(column: str, table: str, conn: Connection) -> int:
     return cursor.fetchone()[0]
 
 
+# papers per publication for PM//no publication specification for OA
 def count_papers_per_journalPM(conn: Connection):
     def extract_base_url(url):
         parsed_url = urlparse(url)
@@ -62,7 +63,7 @@ def proportion_PM_papers_in_OA(PMconn: Connection):
 def generate_total_cites():
     OA_works_column = "work"
     query = f"SELECT {OA_works_column} FROM cites"
-    OA_works_df = pd.read_sql_query(query, con=conn)
+    OA_works_df = pd.read_sql_query(query, con=OAconn)
 
     total_cites = OA_works_df.shape[0]
     print("Total number of citations from any work to any other work: ", total_cites)
@@ -75,11 +76,12 @@ PM_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/r
 PMconn = sqlite3.Connection(database=PM_file_path)
 
 if __name__ == "__main__":
-    proportion_PM_papers_in_OA(PMconn)
+    print("PM results per publication:")
+    count_papers_per_journalPM(PMconn)
     quit()
 
-    print("PM papers in OA: ", count_PMarxiv_papers_in_OA(PMconn, OAconn))
-    count_papers_per_journalPM(PMconn)
+    print("PM arxiv papers in OA: ", count_PMarxiv_papers_in_OA(PMconn, OAconn))
+
     print(
         "PM database count: ",
         count_papers_in_db(column="paper_id", table="model_to_paper", conn=PMconn),
