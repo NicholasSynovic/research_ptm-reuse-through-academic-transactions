@@ -13,17 +13,6 @@ def count_papers_in_db(column: str, table: str, conn: Connection) -> int:
     return cursor.fetchone()[0]
 
 
-# papers per publication for PM//no publication specification for OA
-def count_papers_per_journalPM(conn: Connection):
-    def extract_base_url(url):
-        parsed_url = urlparse(url)
-        return f"{parsed_url.scheme}://{parsed_url.netloc}"
-
-    query = f"SELECT * FROM paper"
-    df = pd.read_sql_query(query, con=conn)
-    print(df["url"].apply(extract_base_url).value_counts())
-
-
 # function that creates and return dataframe without making changes and pass in as parameter to other functions, won't have to do
 # like query below over and over again
 
@@ -51,7 +40,7 @@ def count_PMarxiv_papers_in_OA(PMconn: Connection, OAconn: Connection):
 
 
 def proportion_PM_papers_in_OA(PMconn: Connection):
-    # num of unique PM papers in OA db LEFT OFF HERE ON SLIDDECK
+    # num of unique PM papers in OA db
     PMproportion = count_papers_in_db(
         column="paper_id", table="model_to_paper", conn=PMconn
     )
@@ -69,6 +58,38 @@ def generate_total_cites():
     print("Total number of citations from any work to any other work: ", total_cites)
 
 
+# papers per publication for PM//not impt for OA
+def count_papers_per_journalPM(conn: Connection):
+    def extract_base_url(url):
+        parsed_url = urlparse(url)
+        return f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+    query = f"SELECT * FROM paper"
+    df = pd.read_sql_query(query, con=conn)
+    print(df["url"].apply(extract_base_url).value_counts())
+
+
+# access PM titles of papers without URLs, cross-ref with OA titles and access those papers' DOIs
+def unknown_URL_PMpapers_getting_DOI_from_OA(PMconn: Connection, OAconn: Connection):
+    PMquery = f"SELECT title, url FROM paper WHERE (url IS NULL OR url = '')"
+    PM_titles_nullURLs_df = pd.read_sql_query(PMquery, PMconn)
+
+    OAquery = f"SELECT doi, title FROM works WHERE (doi IS NOT NULL)"
+    OA_titles_df = pd.read_sql_query(OAquery, OAconn)
+
+    PM_titles_nullURLs_df["title_normalized"] = (
+        PM_titles_nullURLs_df["title"].str.strip().str.lower()
+    )
+    OA_titles_df["title_normalized"] = OA_titles_df["title"].str.strip().str.lower()
+
+    # Filter OA DataFrame based on  normalized titles in PM_df
+    filtered_df = OA_titles_df[
+        OA_titles_df["title_normalized"].isin(PM_titles_nullURLs_df["title_normalized"])
+    ]
+    filtered_df_unique = filtered_df.drop_duplicates(subset="title_normalized")
+    print(filtered_df_unique)
+
+
 OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
 OAconn = sqlite3.Connection(database=OA_file_path)
 
@@ -76,9 +97,11 @@ PM_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/r
 PMconn = sqlite3.Connection(database=PM_file_path)
 
 if __name__ == "__main__":
+    unknown_URL_PMpapers_getting_DOI_from_OA(PMconn, OAconn)
+    quit()
+
     print("PM results per publication:")
     count_papers_per_journalPM(PMconn)
-    quit()
 
     print("PM arxiv papers in OA: ", count_PMarxiv_papers_in_OA(PMconn, OAconn))
 
