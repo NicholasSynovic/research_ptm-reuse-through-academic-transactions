@@ -8,15 +8,6 @@ import pandas as pd
 import requests
 from pandas import DataFrame, Series
 
-# function that creates and return dataframe without making changes and pass in as parameter to other functions, won't have to do
-# like query below over and over again
-
-OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
-OAconn = sqlite3.Connection(database=OA_file_path)
-
-PM_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/PeaTMOSS.db"
-PMconn = sqlite3.Connection(database=PM_file_path)
-
 
 def create_df_from_db(file_path: str, column: str, table_from_db: str) -> DataFrame:
     conn = sqlite3.Connection(database=file_path)
@@ -86,9 +77,7 @@ def count_PMarxiv_papers_in_OA(
 
 
 # access PM titles of papers without URLs, cross-ref with OA titles and access those papers' DOIs//new vis for publications of papers with no URLs for underreported/misreported vis
-def unknown_URL_PMpapers_getting_DOI_from_OA(
-    PMconn: Connection, OAconn: Connection
-) -> DataFrame:
+def unknown_URL_PMpapers_getting_DOI_from_OA(PMconn: Connection, OAconn: Connection):
     print("Hello WOrld")
     PMquery = f"SELECT title, url FROM paper WHERE (url IS NULL OR url = '')"
     PM_titles_nullURLs_df = pd.read_sql_query(PMquery, PMconn)
@@ -118,12 +107,24 @@ def unknown_URL_PMpapers_getting_DOI_from_OA(
         final_url = redirection_with_doi.url
         doi_URLs_list.append(pd.DataFrame({"url": [final_url]}))
     doi_URLs_df = pd.concat(doi_URLs_list, ignore_index=True)
-    return doi_URLs_df
+
+    def extract_base_url(url):
+        parsed_url = urlparse(url)
+        return f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+    print(doi_URLs_df["url"].apply(extract_base_url).value_counts())
+
+
+OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
+OAconn = sqlite3.Connection(database=OA_file_path)
+
+
+PM_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/PeaTMOSS.db"
+PMconn = sqlite3.Connection(database=PM_file_path)
 
 
 if __name__ == "__main__":
-    test_df = unknown_URL_PMpapers_getting_DOI_from_OA(PMconn, OAconn)
-    print(test_df)
+    unknown_URL_PMpapers_getting_DOI_from_OA(PMconn, OAconn)
     quit()
 
     print("PM results per publication:")
