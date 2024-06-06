@@ -108,6 +108,7 @@ def unknown_URL_PMpapers_getting_DOI_from_OA(
         OA_titles_df["title_normalized"].isin(PM_titles_nullURLs_df["title_normalized"])
     ]
 
+    # return df with redirected urls based on doi
     doi_array = filtered_df["doi"].to_numpy()
     doi_URLs_df = pd.DataFrame(columns=["url"])
     doi_URLs_list = []
