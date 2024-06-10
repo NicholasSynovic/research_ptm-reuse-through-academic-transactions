@@ -687,6 +687,16 @@ typing = ["typing-extensions"]
 xmp = ["defusedxml"]
 
 [[package]]
+name = "progress"
+version = "1.6"
+description = "Easy to use progress bars"
+optional = false
+python-versions = "*"
+files = [
+    {file = "progress-1.6.tar.gz", hash = "sha256:c9c86e98b5c03fa1fe11e3b67c1feda4788b8d0fe7336c2ff7d5644ccfba34cd"},
+]
+
+[[package]]
 name = "protobuf"
 version = "4.25.3"
 description = ""
@@ -1276,4 +1286,4 @@ watchmedo = ["PyYAML (>=3.10)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "cad6066766d0863ddf078a4ff7062ed26c54d985d0bc71f53ef2f356fb22ff49"
+content-hash = "1c12ed3c824005d830361ca00b383ae6d58c75b50032ded2c42f7297d66521bf"
