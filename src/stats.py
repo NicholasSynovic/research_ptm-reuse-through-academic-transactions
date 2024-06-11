@@ -1,3 +1,4 @@
+import json
 import pickle
 import sqlite3
 from math import ceil
@@ -5,9 +6,11 @@ from sqlite3 import Connection, Cursor
 from typing import Iterator
 from urllib.parse import urlparse
 
-import numpy
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import requests
+import seaborn as sns
 from pandas import DataFrame, Series
 from progress.bar import PixelBar
 
@@ -214,115 +217,120 @@ def total_citations_of_PM_papers():
 
     oaCitesDF["work"].value_counts().to_json(path_or_buf="PM_Citing_OA.json")
 
-    # use name of json file and read json pandas function for stats, functionality within names of json themselves!
+    # use name of json file and read json pandas function for stats, functionality within names of json themselves
 
-    # quit()
 
-    # print('Hellow World')
-    # OA_cites_df = create_df_from_db(OA_file_path, 'work, reference', 'cites')
+def dataset_comparison():
+    # labels = ['OpenAlex Dataset', 'PeaTMOSS Dataset']
+    # values = [7885681, 1937]
 
-    # print("Got cites")
+    # fig, ax = plt.subplots()
+    # ax.bar(labels, values)
+    # ax.set_xlabel('Dataset')
+    # ax.set_ylabel('Number of Unique Papers')
+    # ax.set_title('Comparison of Paper Counts between OpenAlex & PeaTMOSS')
+    # ax.set_yscale('log')
+    # #ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.16g}'.format(y)))
+    # plt.savefig('dataset_comparison.png')
+    # plt.show()
 
-    # OA_titles_df = create_df_from_db(OA_file_path, 'oa_id, title', 'works')
+    data = {
+        "Dataset": ["OpenAlex Dataset", "PeaTMOSS Dataset"],
+        "Number of Unique Papers": [7885681, 1937],
+    }
+    df = pd.DataFrame(data)
+    sns.set(style="darkgrid")
 
-    # print("Got titles")
+    plt.figure(figsize=(10, 6))
+    bar_plot = sns.barplot(x="Dataset", y="Number of Unique Papers", data=df)
 
-    # with open(file="oa_cites.pickle", mode="wb") as pfile:
-    #     pickle.dump(obj=OA_cites_df)
-    #     pfile.close()
+    # Set the title and labels
+    bar_plot.set_title("Comparison of Paper Counts betwen OpenAlex & PeaTMOSS")
+    bar_plot.set_xlabel("Dataset")
+    bar_plot.set_ylabel("Number of Unique Papers")
 
-    # with open(file="oa_title.pickle", mode="wb") as pfile:
-    #     pickle.dump(obj=OA_titles_df)
-    #     pfile.close()
+    bar_plot.set_yscale("log")
 
-    # print('Hellow World')
+    # Rotate x-axis labels if needed
+    bar_plot.set_xticklabels(
+        bar_plot.get_xticklabels(), rotation=45, horizontalalignment="right"
+    )
 
-    # quit()
+    # Save the plot as a PNG file
+    plt.savefig("dataset_comparison", bbox_inches="tight")
 
-    # # merging for titles in work column of cites table
-    # merged1 = OA_cites_df.merge(OA_titles_df, left_on='work', right_on='oa_id', how='left')
-    # merged1 = merged1.rename(columns={'title': 'work_titles'})
 
-    # print('Hellow World')
+def PM_publication_venues():
+    data = {
+        "Publication": ["arXiv", "Other", "ACL Anthology", "GitHub", "Hugging Face"],
+        "Unique Papers": [1151, 418, 152, 64, 57],
+    }
+    df = pd.DataFrame(data)
+    sns.set(style="darkgrid")
 
-    # # merging for titles in reference column of cites
-    # OA_titles_of_cites_merged = merged1.merge(OA_titles_df, left_on='reference', right_on='oa_id', how='left')
-    # OA_titles_of_cites_merged = OA_titles_of_cites_merged.rename(columns={'title': 'ref_titles'})
+    plt.figure(figsize=(10, 6))
+    bar_plot = sns.barplot(x="Publication", y="Unique Papers", data=df)
 
-    # print('Hellow World')
+    # Set the title and labels
+    bar_plot.set_title("Popular Publication Venues")
+    bar_plot.set_xlabel("Publication")
+    bar_plot.set_ylabel("Unique Papers")
 
-    # # delete extra columns created by merge & oa_id columns
-    # OA_titles_of_cites_merged = OA_titles_of_cites_merged.drop(columns=['oa_id_x', 'oa_id_y', 'work', 'reference'])
+    # Rotate x-axis labels if needed
+    bar_plot.set_xticklabels(
+        bar_plot.get_xticklabels(), rotation=45, horizontalalignment="right"
+    )
 
-    # print('Hellow World')
+    # Save the plot as a PNG file
+    plt.savefig("PM_publication_venues", bbox_inches="tight")
 
-    # # strip whitespace and convert to lowercase
-    # def standardize_columns(df):
-    #     return df.applymap(lambda x: x.strip().lower() if isinstance(x, str) else x)
-    # OA_cites_titles_standardized = standardize_columns(OA_titles_of_cites_merged)
-    # PM_titles_standardized = standardize_columns(PM_titles_df)
 
-    # print('Hellow World')
+def PM_DOIs_citedby_OA(top_num_of_models: int, json_file_path: str):
+    def standardize_columns(df):
+        return df.map(lambda x: x.strip().lower() if isinstance(x, str) else x)
 
-    # # total number of papers being cited that're also in PM
-    # matches = PM_titles_standardized["title"].isin(OA_cites_titles_standardized["ref_titles"])
-    # total_num_cited_inPM = matches.sum()
+    # OA_doi_df: Iterator[DataFrame] = createDFGeneratorFromSQL(OA_file_path, 'oa_id, doi', 'works', 10000)
+    # OA_doi_df_stand = standardize_columns(OA_doi_df)
 
-    # print('The total number of papers cited in OA that correspond to papers in PM is: ', total_num_cited_inPM)
+    with open(OA_citing_PM, "r") as f:
+        citation_data = json.load(f)
 
-    # # organize matches based on title and number of unique occurrences in both
-    # OA_match_column = OA_cites_titles_standardized['ref_titles']
-    # PM_match_column = PM_titles_standardized['title']
-    # unique_occurrences = OA_match_column.value_counts().reindex(PM_match_column).fillna(0).astype(int)
+    # JSON -> df
+    citation_df = pd.DataFrame(
+        list(citation_data.items()), columns=["oa_id", "citation_count"]
+    )
+    citation_df_stand = standardize_columns(citation_df)
+    # print(citation_df)
 
-    # print('Hellow World')
+    query = f"SELECT doi FROM works WHERE oa_id = "
 
-    # occurrences_df = pd.DataFrame({
-    #     'title': PM_match_column,
-    #     'cited': unique_occurrences.values
-    # })
+    # sort cite_count descending and filter for top_num_of_models oa_ids
+    top_ids = (
+        citation_df_stand.sort_values(by="citation_count", ascending=False)
+        .head(top_num_of_models)["oa_id"]
+        .tolist()
+    )
 
-    # print('Hellow World')
+    # filter oa_doi_df based on rows that correspond topnumofmodel rows
+    filtered_OA_doi_list = [df.loc[df["oa_id"].isin(top_ids)] for df in OA_doi_df]
+    filtered_OA_df = pd.concat(filtered_OA_doi_list)
+    print(filtered_OA_df)
 
-    # occurrences_df = occurrences_df.sort_values(by='cited', ascending=False).reset_index(drop=True)
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x="doi", y="citation_count", data=filtered_OA_df, order=top_ids)
 
-    # print('Dataframe of PM papers used as citations in OA db organized by unique occurrence per paper: ', occurrences_df)
-    # OA_titles_of_cites_merged = OA_titles_of_cites_merged.drop(columns=['oa_id_x', 'oa_id_y', 'work', 'reference'])
+    plt.title(
+        "Top "
+        + str(top_num_of_models)
+        + " PeaTMOSS Models within OpenAlex by Citation Count"
+    )
+    plt.xlabel("DOI")
+    plt.ylabel("Number of Citations")
 
-    # print('Hellow World')
+    plt.savefig("top_PM_models_citedby_OA")
 
-    # # strip whitespace and convert to lowercase
-    # def standardize_columns(df):
-    #     return df.applymap(lambda x: x.strip().lower() if isinstance(x, str) else x)
-    # OA_cites_titles_standardized = standardize_columns(OA_titles_of_cites_merged)
-    # PM_titles_standardized = standardize_columns(PM_titles_df)
 
-    # print('Hellow World')
-
-    # # total number of papers being cited that're also in PM
-    # matches = PM_titles_standardized["title"].isin(OA_cites_titles_standardized["ref_titles"])
-    # total_num_cited_inPM = matches.sum()
-
-    # print('The total number of papers cited in OA that correspond to papers in PM is: ', total_num_cited_inPM)
-
-    # # organize matches based on title and number of unique occurrences in both
-    # OA_match_column = OA_cites_titles_standardized['ref_titles']
-    # PM_match_column = PM_titles_standardized['title']
-    # unique_occurrences = OA_match_column.value_counts().reindex(PM_match_column).fillna(0).astype(int)
-
-    # print('Hellow World')
-
-    # occurrences_df = pd.DataFrame({
-    #     'title': PM_match_column,
-    #     'cited': unique_occurrences.values
-    # })
-
-    # print('Hellow World')
-
-    # occurrences_df = occurrences_df.sort_values(by='cited', ascending=False).reset_index(drop=True)
-
-    # print('Dataframe of PM papers used as citations in OA db organized by unique occurrence per paper: ', occurrences_df)
-
+OA_citing_PM = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/OA_Citing_PM.json"
 
 OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
 OAconn = sqlite3.Connection(database=OA_file_path)
@@ -333,6 +341,12 @@ PMconn = sqlite3.Connection(database=PM_file_path)
 
 
 if __name__ == "__main__":
+    PM_DOIs_citedby_OA(6, OA_citing_PM)
+    quit()
+
+    dataset_comparison()
+    quit()
+
     total_citations_of_PM_papers()
     quit()
 
