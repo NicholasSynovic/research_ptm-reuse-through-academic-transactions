@@ -2,8 +2,9 @@ import json
 import pickle
 import sqlite3
 from math import ceil
+from pathlib import Path
 from sqlite3 import Connection, Cursor
-from typing import Iterator
+from typing import Any, Iterator
 from urllib.parse import urlparse
 
 import matplotlib.pyplot as plt
@@ -12,7 +13,73 @@ import pandas as pd
 import requests
 import seaborn as sns
 from pandas import DataFrame, Series
-from progress.bar import PixelBar
+from progress.bar import Bar
+from progress.spinner import Spinner
+
+
+def _runOneValueSQLQuery(db: Connection, query: str) -> Iterator[Any]:
+    """
+    _runOneValueSQLQuery Execute an SQL query that returns one value
+
+    :param db: An sqlite3.Connection object
+    :type db: Connection
+    :param query: A SQLite3 compatible query
+    :type query: str
+    :return: An iterator containing any value
+    :rtype: Iterator[Any]
+    """
+    cursor: Cursor = db.execute(query)
+    return cursor.fetchone()
+
+
+def _createDFGeneratorFromSQL(
+    db: Connection,
+    query: str,
+    chunkSize: int = 10000,
+) -> Iterator[DataFrame]:
+    """
+    _createDFGeneratorFromSQL Return a generator of Pandas DataFrames to process large SQL query results
+
+    :param db: An sqlite3.Connection object
+    :type db: Connection
+    :param query: The SQLite3 compatible query to run
+    :type query: str
+    :param chunkSize: The number of rows per DataFrame to return, defaults to 10000
+    :type chunkSize: int, optional
+    :return: A generator of Pandas DataFrames
+    :rtype: _type_
+    :yield: A pandas.DataFrame
+    :rtype: Iterator[DataFrame]
+    """
+    return pd.read_sql_query(query, con=db, chunksize=chunkSize)
+
+
+def connectToDB(dbPath: Path) -> Connection:
+    """
+    connectToDB Connect to a SQLite3 database and return the sqlite3.Connection object
+
+    :param dbPath: Filepath to a SQLite3 database
+    :type dbPath: Path
+    :return: The sqlite3.Connection object
+    :rtype: Connection
+    """
+    return Connection(database=dbPath)
+
+
+def oa_CountPapersByDOI(oaDB: Connection) -> int:
+    doiCount: int = 0
+    query: str = "SELECT DISTINCT doi FROM works"
+    dfs: Iterator[DataFrame] = _createDFGeneratorFromSQL(db=oaDB, query=query)
+
+    with Spinner(message="Counting number of query...") as spinner:
+        df: DataFrame
+        for df in dfs:
+            df["doi"].replace(to_replace=" ", value=None, inplace=True)
+            df.dropna(inplace=True)
+            doiCount += df.shape[0]
+            spinner.next()
+
+    return doiCount
 
 
 def getNumberOfCitations(file_path: str) -> int:
@@ -29,15 +96,6 @@ def getNumberOfWorks(file_path: str) -> int:
     # cursor: Cursor = conn.execute(sqlQuery)
     # return cursor.fetchone()[0]
     return 13435534
-
-
-def createDFGeneratorFromSQL(
-    file_path: str, column: str, table_from_db: str, chunksize: int
-) -> Iterator[DataFrame]:  # incorporate across functions
-    conn = sqlite3.Connection(database=file_path)
-    query = f"SELECT {column} FROM {table_from_db}"
-    df = pd.read_sql_query(query, con=conn, chunksize=chunksize)
-    return df
 
 
 def create_df_from_db(
