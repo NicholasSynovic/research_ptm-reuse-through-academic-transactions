@@ -16,6 +16,8 @@ from pandas import DataFrame, Series
 from progress.bar import Bar
 from progress.spinner import Spinner
 
+from src.stats import OA_CITATION_COUNT, OA_OAID_COUNT
+
 
 def _runOneValueSQLQuery(db: Connection, query: str) -> Iterator[Any]:
     """
@@ -67,6 +69,16 @@ def connectToDB(dbPath: Path) -> Connection:
 
 
 def oa_CountPapersByDOI(oaDB: Connection) -> int:
+    """
+    oa_CountPapersByDOI Count the number of papers within an OpenAlex dataset by the unique DOI
+
+    DOIs that contain a space are excluded from the count
+
+    :param oaDB: A sqlite3.Connection object to an OpenAlex dataset
+    :type oaDB: Connection
+    :return: The number of papers in the dataset that have a unqiue DOI
+    :rtype: int
+    """
     doiCount: int = 0
     query: str = "SELECT DISTINCT doi FROM works"
     dfs: Iterator[DataFrame] = _createDFGeneratorFromSQL(db=oaDB, query=query)
@@ -82,35 +94,60 @@ def oa_CountPapersByDOI(oaDB: Connection) -> int:
     return doiCount
 
 
-def getNumberOfCitations(file_path: str) -> int:
-    # sqlQuery: str = "SELECT id FROM cites ORDER BY id DESC LIMIT 1"
-    # conn = sqlite3.Connection(database=file_path)
-    # cursor: Cursor = conn.execute(sqlQuery)
-    # return cursor.fetchone()[0]
-    return 113563323
+def oa_CountPapersByOAID(
+    oaDB: Connection,
+    returnDefault: bool = True,
+) -> int:
+    """
+    oa_CountPapersByOAID Count the number of papers within an OpenAlex dataset by the unique OpenAlex ID
+
+    :param oaDB: A sqlite3.Connection object to an OpenAlex dataset
+    :type oaDB: Connection
+    :param returnDefault: Skip computing the value and use the pre-computed value, defaults to True
+    :type returnDefault: bool, optional
+    :return: The number of papers in the dataset that have a unqiue OpenAlex ID
+    :rtype: int
+    """
+    query: str = "SELECT COUNT(DISTINCT oa_id) FROM works"
+    if returnDefault:
+        return OA_OAID_COUNT
+    else:
+        return _runOneValueSQLQuery(db=oaDB, query=query)[0]
 
 
-def getNumberOfWorks(file_path: str) -> int:
-    # sqlQuery: str = "SELECT COUNT(oa_id) FROM works"
-    # conn = sqlite3.Connection(database=file_path)
-    # cursor: Cursor = conn.execute(sqlQuery)
-    # return cursor.fetchone()[0]
-    return 13435534
+def oa_ProportionOfValidPapers(oaIDCount: int, oaDOICount: int) -> float:
+    """
+    oa_ProportionOfValidPapers Compute the proportion of papers with a valid DOI in an OpenAlex dataset
+
+    :param oaIDCount: Number of papers that have an OpenAlex ID
+    :type oaIDCount: int
+    :param oaDOICount: Number of papers that have a DOI
+    :type oaDOICount: int
+    :return: The proportion of DOI papers over OpenAlex ID papers
+    :rtype: float
+    """
+    return oaDOICount / oaIDCount
 
 
-def create_df_from_db(
-    file_path: str, column: str, table_from_db: str
-) -> DataFrame:  # incorporate across functions
-    conn = sqlite3.Connection(database=file_path)
-    query = f"SELECT {column} FROM {table_from_db}"
-    df = pd.read_sql_query(query, con=conn)
-    return df
+def oa_CountCitations(
+    oaDB: Connection,
+    returnDefault: bool = True,
+) -> int:
+    """
+    oa_CountCitations Return the number of citations in an OpenAlex database
 
-
-def count_papers_in_db(column: str, table: str, conn: Connection) -> int:
-    query = f"SELECT COUNT(DISTINCT {column} FROM {table}"
-    cursor: Cursor = conn.execute(query)
-    return cursor.fetchone()[0]
+    :param oaDB: A  sqlite3.Connection object to an OpenAlex dataset
+    :type oaDB: Connection
+    :param returnDefault: Skip computing the value and use the pre-computed value, defaults to True
+    :type returnDefault: bool, optional
+    :return: The number of citations in the OpenAlex dataset
+    :rtype: int
+    """
+    query: str = "SELECT id FROM cites ORDER BY id DESC LIMIT 1"
+    if returnDefault:
+        return OA_CITATION_COUNT
+    else:
+        return _runOneValueSQLQuery(db=oaDB, query=query)
 
 
 def proportion_PM_papers_in_OA(PMconn: Connection):
