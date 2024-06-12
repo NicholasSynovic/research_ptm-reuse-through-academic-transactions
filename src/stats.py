@@ -285,12 +285,18 @@ def PM_publication_venues():
     plt.savefig("PM_publication_venues", bbox_inches="tight")
 
 
-def PM_DOIs_citedby_OA(top_num_of_models: int, json_file_path: str):
+def PM_DOIs_citedby_OA(top_num_of_models: int):
     def standardize_columns(df):
         return df.map(lambda x: x.strip().lower() if isinstance(x, str) else x)
 
-    # OA_doi_df: Iterator[DataFrame] = createDFGeneratorFromSQL(OA_file_path, 'oa_id, doi', 'works', 10000)
-    # OA_doi_df_stand = standardize_columns(OA_doi_df)
+    OA_doi_df: Iterator[DataFrame] = createDFGeneratorFromSQL(
+        OA_file_path, "oa_id, doi", "works", 10000
+    )
+    standardized_chunks = []
+    for chunk in OA_doi_df:
+        standardized_chunk = standardize_columns(chunk)
+        standardized_chunks.append(standardized_chunk)
+    OA_doi_df_stand = pd.concat(standardized_chunks)
 
     with open(OA_citing_PM, "r") as f:
         citation_data = json.load(f)
@@ -300,34 +306,29 @@ def PM_DOIs_citedby_OA(top_num_of_models: int, json_file_path: str):
         list(citation_data.items()), columns=["oa_id", "citation_count"]
     )
     citation_df_stand = standardize_columns(citation_df)
-    # print(citation_df)
 
-    query = f"SELECT doi FROM works WHERE oa_id = "
-
-    # sort cite_count descending and filter for top_num_of_models oa_ids
-    top_ids = (
-        citation_df_stand.sort_values(by="citation_count", ascending=False)
-        .head(top_num_of_models)["oa_id"]
-        .tolist()
+    # putting OA and JSON together based on JSON
+    filtered_OA_JSON = pd.merge(OA_doi_df_stand, citation_df_stand, on="oa_id")
+    filtered_OA_JSON_sort = filtered_OA_JSON.sort_values(
+        by="citation_count", ascending=False
     )
 
-    # filter oa_doi_df based on rows that correspond topnumofmodel rows
-    filtered_OA_doi_list = [df.loc[df["oa_id"].isin(top_ids)] for df in OA_doi_df]
-    filtered_OA_df = pd.concat(filtered_OA_doi_list)
-    print(filtered_OA_df)
+    top_models_df = filtered_OA_JSON_sort.head(top_num_of_models)
 
+    # bar plot
+    sns.set(style="darkgrid")
     plt.figure(figsize=(10, 6))
-    sns.barplot(x="doi", y="citation_count", data=filtered_OA_df, order=top_ids)
-
+    sns.barplot(x="doi", y="citation_count", data=top_models_df)
     plt.title(
         "Top "
         + str(top_num_of_models)
-        + " PeaTMOSS Models within OpenAlex by Citation Count"
+        + " PeaTMOSS Models by Citation Count".format(top_num_of_models)
     )
     plt.xlabel("DOI")
     plt.ylabel("Number of Citations")
-
-    plt.savefig("top_PM_models_citedby_OA")
+    plt.xticks(rotation=45, ha="center")
+    plt.tight_layout()
+    plt.savefig("top_PMmodels_cited_byOA", bbox_inches="tight")
 
 
 OA_citing_PM = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/OA_Citing_PM.json"
@@ -341,7 +342,7 @@ PMconn = sqlite3.Connection(database=PM_file_path)
 
 
 if __name__ == "__main__":
-    PM_DOIs_citedby_OA(6, OA_citing_PM)
+    PM_DOIs_citedby_OA(10)
     quit()
 
     dataset_comparison()
