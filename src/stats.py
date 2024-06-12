@@ -247,14 +247,16 @@ def dataset_comparison():
     # Set the title and labels
     bar_plot.set_title("Comparison of Paper Counts betwen OpenAlex & PeaTMOSS")
     bar_plot.set_xlabel("Dataset")
-    bar_plot.set_ylabel("Number of Unique Papers")
+    bar_plot.set_ylabel("Number of Unique Papers (log)")
 
     bar_plot.set_yscale("log")
 
     # Rotate x-axis labels if needed
-    bar_plot.set_xticklabels(
-        bar_plot.get_xticklabels(), rotation=45, horizontalalignment="right"
-    )
+    # bar_plot.set_xticklabels(
+    #     bar_plot.get_xticklabels(), horizontalalignment="right"
+    # )
+
+    bar_plot.set_xticklabels(bar_plot.get_xticklabels(), ha="center", fontsize=9.5)
 
     # Save the plot as a PNG file
     plt.savefig("dataset_comparison", bbox_inches="tight")
@@ -262,8 +264,15 @@ def dataset_comparison():
 
 def PM_publication_venues():
     data = {
-        "Publication": ["arXiv", "Other", "ACL Anthology", "GitHub", "Hugging Face"],
-        "Unique Papers": [1151, 418, 152, 64, 57],
+        "Publication": [
+            "arXiv",
+            "Other",
+            "ACL Anthology",
+            "Unknown",
+            "GitHub",
+            "Hugging Face",
+        ],
+        "Unique Papers": [1151, 418, 152, 142, 64, 57],
     }
     df = pd.DataFrame(data)
     sns.set(style="darkgrid")
@@ -313,12 +322,31 @@ def PM_DOIs_citedby_OA(top_num_of_models: int):
         by="citation_count", ascending=False
     )
 
-    top_models_df = filtered_OA_JSON_sort.head(top_num_of_models)
+    top_models_df = filtered_OA_JSON_sort.head(10)
+
+    models = {
+        "Model": [
+            "ResNeXt",
+            "Transformer-XL",
+            "HRNet",
+            "BLEURT (BERT)",
+            "upforreview173",
+            "upforreview1082",
+            "MAE",
+            "upforreview1003",
+            "RegNet",
+            "MultiNLI",
+        ]
+    }
+    models_df = pd.DataFrame(models)
+    combined_model_and_dois = pd.concat(
+        [top_models_df.reset_index(drop=True), models_df.reset_index(drop=True)], axis=1
+    )
 
     # bar plot
     sns.set(style="darkgrid")
     plt.figure(figsize=(10, 6))
-    sns.barplot(x="doi", y="citation_count", data=top_models_df)
+    sns.barplot(x="Model", y="citation_count", data=combined_model_and_dois)
     plt.title(
         "Top "
         + str(top_num_of_models)
@@ -326,7 +354,7 @@ def PM_DOIs_citedby_OA(top_num_of_models: int):
     )
     plt.xlabel("DOI")
     plt.ylabel("Number of Citations")
-    plt.xticks(rotation=45, ha="center")
+    plt.xticks(ha="center", fontsize=9)
     plt.tight_layout()
     plt.savefig("top_PMmodels_cited_byOA", bbox_inches="tight")
 
@@ -342,7 +370,7 @@ PMconn = sqlite3.Connection(database=PM_file_path)
 
 
 if __name__ == "__main__":
-    PM_DOIs_citedby_OA(10)
+    dataset_comparison()
     quit()
 
     dataset_comparison()
