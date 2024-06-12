@@ -7,6 +7,7 @@ from sqlite3 import Connection, Cursor
 from typing import Any, Iterator
 from urllib.parse import ParseResult, urlparse
 
+import click
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ import seaborn as sns
 from pandas import DataFrame, Series
 from progress.bar import Bar
 from progress.spinner import Spinner
+from pyfs import isFile, resolvePath
 
 from src.stats import OA_CITATION_COUNT, OA_OAID_COUNT
 
@@ -196,7 +198,7 @@ def oapm_ProportionOfPMPapersInOA(
     return pmPapers / oaPapers
 
 
-def pm_CountPapersPerJournal(pmDB: Connection) -> Series[int]:
+def pm_CountPapersPerJournal(pmDB: Connection) -> Series:
     """
     pm_CountPapersPerJournal Count the number of papers per journal in PeaTMOSS
 
@@ -800,8 +802,32 @@ if __name__ == "__main__":
     )
 =======
 
-def main() -> None:
-    pass
+@click.command()
+@click.option(
+    "-p",
+    "--peatmoss",
+    "pmPath",
+    type=Path,
+    help="Path to PeaTMOSS database",
+    required=True,
+)
+@click.option(
+    "-o",
+    "--openalex",
+    "oaPath",
+    type=Path,
+    help="Path to OpenAlex database",
+    required=True,
+)
+def main(pmPath: Path, oaPath: Path) -> None:
+    absPMPath: Path = resolvePath(path=pmPath)
+    absOAPath: Path = resolvePath(path=oaPath)
+
+    assert isFile(path=absPMPath)
+    assert isFile(path=absOAPath)
+
+    pmDB: Connection = connectToDB(dbPath=absPMPath)
+    oaDB: Connection = connectToDB(dbPath=absOAPath)
 
 
 if __name__ == "__main__":
