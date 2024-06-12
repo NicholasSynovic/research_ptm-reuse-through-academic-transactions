@@ -163,3 +163,5 @@ cython_debug/
 nature/
 *.png
 .DS_Store
+*.json
+*.partial
