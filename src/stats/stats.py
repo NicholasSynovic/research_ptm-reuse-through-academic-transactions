@@ -910,12 +910,6 @@ def main(pmPath: Path, oaPath: Path) -> None:
         intcomma(value=pmPaperCountByID),
     )
 
-    pmPapersPerJournal: Series = pm_CountPapersPerJournal(pmDB=pmDB)
-    print(
-        "Number of papers per journal in PeaTMOSS:\n",
-        pmPapersPerJournal,
-    )
-
     pmArxivPapersInOA: int = oapm_CountPMArXivPapersInOA(
         pmDB=pmDB,
         oaDB=oaDB,
@@ -925,7 +919,20 @@ def main(pmPath: Path, oaPath: Path) -> None:
         intcomma(value=pmArxivPapersInOA),
     )
 
-    print(oapm_CountCitationsOfArXivPMPapers(pmDB=pmDB, oaDB=oaDB))
+    pmPapersPerJournal: Series = pm_CountPapersPerJournal(pmDB=pmDB)
+    print(
+        "Number of papers per journal in PeaTMOSS:\n",
+        pmPapersPerJournal,
+    )
+
+    oapm_arXivPMPapers: Series = oapm_CountCitationsOfArXivPMPapers(
+        pmDB=pmDB,
+        oaDB=oaDB,
+    )
+    print(
+        "Number of citations per PeaTMOSS published in arXiv:\n",
+        oapm_arXivPMPapers,
+    )
 
 
 if __name__ == "__main__":
