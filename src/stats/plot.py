@@ -117,31 +117,6 @@ def plot_PMPublicationVenuePaperCount(
     plt.clf()
 
 
-# def PM_publication_venues():
-#     data = {
-#         "Publication": ["arXiv", "Other", "ACL Anthology", "GitHub", "Hugging Face"],
-#         "Unique Papers": [1151, 418, 152, 64, 57],
-#     }
-#     df = pd.DataFrame(data)
-#     sns.set(style="darkgrid")
-
-#     plt.figure(figsize=(10, 6))
-#     bar_plot = sns.barplot(x="Publication", y="Unique Papers", data=df)
-
-#     # Set the title and labels
-#     bar_plot.set_title("Popular Publication Venues")
-#     bar_plot.set_xlabel("Publication")
-#     bar_plot.set_ylabel("Unique Papers")
-
-#     # Rotate x-axis labels if needed
-#     bar_plot.set_xticklabels(
-#         bar_plot.get_xticklabels(), rotation=45, horizontalalignment="right"
-#     )
-
-#     # Save the plot as a PNG file
-#     plt.savefig("PM_publication_venues", bbox_inches="tight")
-
-
 # def PM_DOIs_citedby_OA(top_num_of_models: int):
 #     def standardize_columns(df):
 #         return df.map(lambda x: x.strip().lower() if isinstance(x, str) else x)
