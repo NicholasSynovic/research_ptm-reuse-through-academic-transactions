@@ -11,7 +11,7 @@ from humanize import intcomma
 from pandas import DataFrame, Series
 from progress.bar import Bar
 from progress.spinner import Spinner
-from pyfs import isFile, resolvePath
+from pyfs import isDirectory, isFile, resolvePath
 
 from src.stats import (
     OA_CITATION_COUNT,
@@ -369,6 +369,7 @@ def pm_IdentifyPapersPublishedInArXiv(pmDB: Connection) -> DataFrame:
 def oapm_GetDOIsOfOAWorksThatCitePM(
     oaDB: Connection,
     pmCitationCounts: Series,
+    jsonOutputPath: Path,
 ) -> dict[str, DataFrame]:
     ptms: List[str] = ["ResNeXt", "Transformer-XL", "HRNet", "MAE"]
     dfsDict: dict[str, DataFrame] = {}
@@ -414,11 +415,22 @@ def oapm_GetDOIsOfOAWorksThatCitePM(
                 bar.next()
 
     for items in dois.items():
+        jsonFilePath: Path = Path(jsonOutputPath, f"{items[0]}.json")
         foo: dict[str, List[str]] = {items[0]: items[1]}
         df: DataFrame = DataFrame(data=foo)
-        df.sample(frac=1, random_state=42, ignore_index=True).iloc[0:10].T.to_json(
-            path_or_buf=f"{items[0]}.json"
+        df = df[df[items[0]] != "!error"]
+        (
+            df.sample(
+                frac=1,
+                random_state=42,
+                ignore_index=True,
+            )
+            .iloc[0:10]
+            .T.to_json(
+                path_or_buf=jsonFilePath,
+            )
         )
+        print(f"Saved file to: {jsonFilePath}")
 
 
 @click.command()
@@ -445,19 +457,34 @@ def oapm_GetDOIsOfOAWorksThatCitePM(
     type=Path,
     help="Path to pickled PeaTMOSS arXiv Citation Count",
     required=False,
-    default=Path("pmArXivCitations.pickle"),
+    default=Path("../../data/pickle/pmArXivCitations.pickle"),
+    show_default=True,
+)
+@click.option(
+    "-j",
+    "--json-output",
+    "jsonOutput",
+    type=Path,
+    help="Path to JSON output",
+    required=False,
+    default=Path("../../data/json"),
     show_default=True,
 )
 def main(
     pmPath: Path,
     oaPath: Path,
     pmArxivCitationCount: Path,
+    jsonOutput: Path,
 ) -> None:
     absPMPath: Path = resolvePath(path=pmPath)
     absOAPath: Path = resolvePath(path=oaPath)
+    absPMACCPath: Path = resolvePath(path=pmArxivCitationCount)
+    absJOPath: Path = resolvePath(path=jsonOutput)
 
     assert isFile(path=absPMPath)
     assert isFile(path=absOAPath)
+    assert isFile(path=absPMACCPath)
+    assert isDirectory(path=absJOPath)
 
     pmDB: Connection = connectToDB(dbPath=absPMPath)
     oaDB: Connection = connectToDB(dbPath=absOAPath)
@@ -512,21 +539,22 @@ def main(
 
     oapm_arXivPMPapers: Series
     try:
-        oapm_arXivPMPapers = pandas.read_pickle(filepath_or_buffer=pmArxivCitationCount)
+        oapm_arXivPMPapers = pandas.read_pickle(filepath_or_buffer=absPMACCPath)
     except FileExistsError:
         oapm_arXivPMPapers = oapm_CountCitationsOfArXivPMPapers(
             pmDB=pmDB,
             oaDB=oaDB,
         )
+        oapm_arXivPMPapers.to_pickle(path=absPMACCPath)
     print(
         "Number of citations per PeaTMOSS published in arXiv:\n",
         oapm_arXivPMPapers,
     )
 
-    print("===")
     oapm_GetDOIsOfOAWorksThatCitePM(
         oaDB=oaDB,
         pmCitationCounts=oapm_arXivPMPapers,
+        jsonOutputPath=absJOPath,
     )
 
 
