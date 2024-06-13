@@ -29,6 +29,14 @@ def _humanizeInt(number: int | float) -> str:
 
 
 def _renameURL(url: str) -> str:
+    """
+    _renameURL Given a URL, rename it to a specific string
+
+    :param url: A URL to rename
+    :type url: str
+    :return: A renamed version of the URL
+    :rtype: str
+    """
     url = url.strip()
 
     if url == "":
@@ -88,6 +96,14 @@ def plot_PMPublicationVenuePaperCount(
     venuePaperCounts: Series,
     filepath: Path,
 ) -> None:
+    """
+    plot_PMPublicationVenuePaperCount Plot the number of PeaTMOSS papers per publication venue
+
+    :param venuePaperCounts: A count of the venues that papers are published in
+    :type venuePaperCounts: Series
+    :param filepath: Path to save figure to
+    :type filepath: Path
+    """
     data: Series = venuePaperCounts.iloc[0:4]
 
     url: str
