@@ -13,12 +13,13 @@ import numpy as np
 import pandas as pd
 import requests
 import seaborn as sns
+from humanize import intcomma
 from pandas import DataFrame, Series
 from progress.bar import Bar
 from progress.spinner import Spinner
 from pyfs import isFile, resolvePath
 
-from src.stats import OA_CITATION_COUNT, OA_OAID_COUNT
+from src.stats import OA_CITATION_COUNT, OA_DOI_COUNT, OA_OAID_COUNT
 
 
 def _runOneValueSQLQuery(db: Connection, query: str) -> Iterator[Any]:
@@ -74,6 +75,45 @@ def _createDFFromSQL(db: Connection, query: str) -> DataFrame:
     return pd.read_sql_query(query, con=db)
 
 
+def _extractNetLoc(url: str) -> str:
+    """
+    _extractNetLoc Return the netloc attribute of a URL if it exists
+
+    :param url: A URL to parse
+    :type url: str
+    :return: the netloc attribute of the URL
+    :rtype: str
+    """
+    return urlparse(url=url).netloc
+
+
+def _convertToArXivDOI(arxivURL: str) -> str:
+    """
+    _convertToArXivDOI Given an arXiv compliant URL, create the arXiv DOI from it
+
+    :param arxivURL: An arXiv compatible URL (https://arxiv.org/abs/)
+    :type arxivURL: str
+    :return: An arXiv compatible DOI
+    :rtype: str
+    """
+    return arxivURL.replace(
+        "https://arxiv.org/abs/",
+        "10.48550/arxiv.",
+    )
+
+
+def _standardizeText(text: str) -> str:
+    """
+    _standardizeText Remove trailing whitespace(s) and make text lower case
+
+    :param text: The text to format
+    :type text: str
+    :return: A formatted string of the input text
+    :rtype: str
+    """
+    return text.strip().lower()
+
+
 def connectToDB(dbPath: Path) -> Connection:
     """
     connectToDB Connect to a SQLite3 database and return the sqlite3.Connection object
@@ -86,7 +126,10 @@ def connectToDB(dbPath: Path) -> Connection:
     return Connection(database=dbPath)
 
 
-def oa_CountPapersByDOI(oaDB: Connection) -> int:
+def oa_CountPapersByDOI(
+    oaDB: Connection,
+    returnDefault: bool = True,
+) -> int:
     """
     oa_CountPapersByDOI Count the number of papers within an OpenAlex dataset by the unique DOI
 
@@ -94,22 +137,29 @@ def oa_CountPapersByDOI(oaDB: Connection) -> int:
 
     :param oaDB: A sqlite3.Connection object to an OpenAlex dataset
     :type oaDB: Connection
+    :param returnDefault: Skip computing the value and use the pre-computed value, defaults to True
+    :type returnDefault: bool, optional
     :return: The number of papers in the dataset that have a unqiue DOI
     :rtype: int
     """
-    doiCount: int = 0
-    query: str = "SELECT DISTINCT doi FROM works"
-    dfs: Iterator[DataFrame] = _createDFGeneratorFromSQL(db=oaDB, query=query)
+    if returnDefault:
+        return OA_DOI_COUNT
+    else:
+        doiCount: int = 0
+        query: str = "SELECT DISTINCT doi FROM works"
+        dfs: Iterator[DataFrame] = _createDFGeneratorFromSQL(db=oaDB, query=query)
 
-    with Spinner(message="Counting number of query...") as spinner:
-        df: DataFrame
-        for df in dfs:
-            df["doi"].replace(to_replace=" ", value=None, inplace=True)
-            df.dropna(inplace=True)
-            doiCount += df.shape[0]
-            spinner.next()
+        with Spinner(
+            message="Counting number of papers in OpenAlex by DOI...",
+        ) as spinner:
+            df: DataFrame
+            for df in dfs:
+                df["doi"] = df["doi"].replace(to_replace=" ", value=None)
+                df.dropna(inplace=True)
+                doiCount += df.shape[0]
+                spinner.next()
 
-    return doiCount
+        return doiCount
 
 
 def oa_CountPapersByOAID(
@@ -165,20 +215,7 @@ def oa_CountCitations(
     if returnDefault:
         return OA_CITATION_COUNT
     else:
-        return _runOneValueSQLQuery(db=oaDB, query=query)
-
-
-def pm_CountPapersByID(pbDB: Connection) -> int:
-    """
-    pm_CountPapersByID Count the number of PeaTMOSS papers by their paper ID
-
-    :param pbDB: A sqlite3.Connection to a PeaTMOSS database
-    :type pbDB: Connection
-    :return: The number of papers in a PeaTMOSS database
-    :rtype: int
-    """
-    query: str = "SELECT COUNT(DISTINCT paper_id) FROM model_to_paper"
-    return _runOneValueSQLQuery(db=pbDB, query=query)
+        return _runOneValueSQLQuery(db=oaDB, query=query)[0]
 
 
 def oapm_ProportionOfPMPapersInOA(
@@ -198,6 +235,19 @@ def oapm_ProportionOfPMPapersInOA(
     return pmPapers / oaPapers
 
 
+def pm_CountPapersByID(pmDB: Connection) -> int:
+    """
+    pm_CountPapersByID Count the number of PeaTMOSS papers by their paper ID
+
+    :param pmDB: A sqlite3.Connection to a PeaTMOSS database
+    :type pbDB: Connection
+    :return: The number of papers in a PeaTMOSS database
+    :rtype: int
+    """
+    query: str = "SELECT COUNT(DISTINCT paper_id) FROM model_to_paper"
+    return _runOneValueSQLQuery(db=pmDB, query=query)[0]
+
+
 def pm_CountPapersPerJournal(pmDB: Connection) -> Series:
     """
     pm_CountPapersPerJournal Count the number of papers per journal in PeaTMOSS
@@ -207,106 +257,46 @@ def pm_CountPapersPerJournal(pmDB: Connection) -> Series:
     :return: A pandas.Series[int] object of the number of papers per journal
     :rtype: Series[int]
     """
-
-    def _extractNetLoc(url: str) -> str:
-        """
-        _extractNetLoc Return the netloc attribute of a URL if it exists
-
-        :param url: A URL to parse
-        :type url: str
-        :return: the netloc attribute of the URL
-        :rtype: str
-        """
-        return urlparse(url=url).netloc
-
     query: str = "SELECT url FROM paper"
     df: DataFrame = _createDFFromSQL(db=pmDB, query=query)
     df["url"] = df["url"].apply(_extractNetLoc)
     return df["url"].value_counts(sort=True, dropna=False)
 
 
-# def count_PMarxiv_papers_in_OA(
-#     PMconn: Connection, OAconn: Connection
-# ):  # option - do for other major publications in PM
-#     paper_count = 0
+def oapm_CountPMArXivPapersInOA(
+    pmDB: Connection,
+    oaDB: Connection,
+) -> int:
+    count: int = 0
 
-#     query = f"SELECT * FROM paper"
-#     PM_df = create_df_from_db(PM_file_path, "*", "paper")  # PM_df: Dataframe = syntax?
-#     arxiv_series: Series = PM_df["url"].str.lower()
-#     arxiv_formatted: Series = arxiv_series.str.replace(
-#         pat="https://arxiv.org/abs/", repl="10.48550/arxiv."
-#     )
+    pmQuery: str = "SELECT title, url FROM paper"
+    oaQuery: str = "SELECT DISTINCT doi FROM works"
 
-#     OA_query = f"SELECT oa_id, doi FROM works"
-#     OA_df: Iterator[DataFrame] = pd.read_sql_query(
-#         OA_query, con=OAconn, chunksize=10000
-#     )
+    pmDF: DataFrame = _createDFFromSQL(db=pmDB, query=pmQuery)
 
-#     df: DataFrame
-#     for df in OA_df:
-#         df_lower: Series = df["doi"].str.lower()
-#         paper_count += df["doi"][df_lower.isin(arxiv_formatted)].size
-#     return paper_count
+    pmDF["url"] = pmDF["url"].apply(_convertToArXivDOI)
+    pmDF["title"] = pmDF["title"].apply(_standardizeText)
 
+    arxivPMDF: DataFrame = pmDF[pmDF["url"].str.contains("10.48550/arxiv.")]
 
-# # access PM titles of papers without URLs, cross-ref with OA titles and access those papers' DOIs//new vis for publications of papers with no URLs for underreported/misreported vis
-# # find publications for entries in OA that have no DOI that correspond to entries in PM without URLs by brute force publication identification, still want to vis in underreported/general
-# def unknown_URL_PMpapers_getting_DOI_from_OA(PMconn: Connection, OAconn: Connection):
-#     print("Hello WOrld")
-#     PMquery = f"SELECT title, url FROM paper WHERE (url IS NULL OR url = '')"
-#     PM_titles_nullURLs_df = pd.read_sql_query(PMquery, PMconn)
+    oaDFs: Iterator[DataFrame] = _createDFGeneratorFromSQL(
+        db=oaDB,
+        query=oaQuery,
+    )
 
-#     print("hello WOrld")
-#     OAquery = f"SELECT doi, title FROM works WHERE (doi IS NOT NULL)"
-#     OA_titles_df = pd.read_sql_query(OAquery, OAconn)
+    with Spinner(
+        message="Counting the number of PeaTMOSS papers published in arXiv that are captured in OpenAlex...",
+    ) as spinner:
+        df: DataFrame
+        for df in oaDFs:
+            df["doi"] = df["doi"].apply(_standardizeText)
+            count += df[df["doi"].isin(arxivPMDF["url"])].shape[0]
+            spinner.next()
 
-#     PM_titles_nullURLs_df["title_normalized"] = (
-#         PM_titles_nullURLs_df["title"].str.strip().str.lower()
-#     )
-#     OA_titles_df["title_normalized"] = OA_titles_df["title"].str.strip().str.lower()
-
-#     # Filter OA DataFrame based on  normalized titles in PM_df
-#     print("Hello Oworld")
-#     filtered_df = OA_titles_df[
-#         OA_titles_df["title_normalized"].isin(PM_titles_nullURLs_df["title_normalized"])
-#     ]
-
-#     # return df with redirected urls based on doi
-#     doi_array = filtered_df["doi"].to_numpy()
-#     doi_URLs_df = pd.DataFrame(columns=["url"])
-#     doi_URLs_list = []
-#     for doi in doi_array:
-#         initial_url = "https://doi.org/" + doi
-#         redirection_with_doi = requests.get(initial_url, allow_redirects=True)
-#         final_url = redirection_with_doi.url
-#         doi_URLs_list.append(pd.DataFrame({"url": [final_url]}))
-#     doi_URLs_df = pd.concat(doi_URLs_list, ignore_index=True)
-
-#     def extract_base_url(url):
-#         parsed_url = urlparse(url)
-#         return f"{parsed_url.scheme}://{parsed_url.netloc}"
-
-#     print(doi_URLs_df["url"].apply(extract_base_url).value_counts())
+    return count
 
 
-# # Citation relationships
-
-
-# # total citations across the board
-# def generate_total_cites():
-#     OA_works_column = "work"
-
-#     OA_works_df = create_df_from_db(OA_file_path, OA_works_column, "cites")
-
-#     total_cites = OA_works_df.shape[0]
-#     print("Total number of citations from any work to any other work: ", total_cites)
-
-
-# # tally of citations made in OA that correspond to papers in PM - total number and organized dataframe based on number of unique matches
 # def total_citations_of_PM_papers():
-#     def standardize_columns(df):
-#         return df.map(lambda x: x.strip().lower() if isinstance(x, str) else x)
-
 #     titleStore: list[DataFrame] = []
 #     citesStore: list[DataFrame] = []
 
@@ -491,6 +481,45 @@ def pm_CountPapersPerJournal(pmDB: Connection) -> Series:
 # PM_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/PeaTMOSS.db"
 # PMconn = sqlite3.Connection(database=PM_file_path)
 
+# # access PM titles of papers without URLs, cross-ref with OA titles and access those papers' DOIs//new vis for publications of papers with no URLs for underreported/misreported vis
+# # find publications for entries in OA that have no DOI that correspond to entries in PM without URLs by brute force publication identification, still want to vis in underreported/general
+# def unknown_URL_PMpapers_getting_DOI_from_OA(PMconn: Connection, OAconn: Connection):
+#     print("Hello WOrld")
+#     PMquery = f"SELECT title, url FROM paper WHERE (url IS NULL OR url = '')"
+#     PM_titles_nullURLs_df = pd.read_sql_query(PMquery, PMconn)
+
+#     print("hello WOrld")
+#     OAquery = f"SELECT doi, title FROM works WHERE (doi IS NOT NULL)"
+#     OA_titles_df = pd.read_sql_query(OAquery, OAconn)
+
+#     PM_titles_nullURLs_df["title_normalized"] = (
+#         PM_titles_nullURLs_df["title"].str.strip().str.lower()
+#     )
+#     OA_titles_df["title_normalized"] = OA_titles_df["title"].str.strip().str.lower()
+
+#     # Filter OA DataFrame based on  normalized titles in PM_df
+#     print("Hello Oworld")
+#     filtered_df = OA_titles_df[
+#         OA_titles_df["title_normalized"].isin(PM_titles_nullURLs_df["title_normalized"])
+#     ]
+
+#     # return df with redirected urls based on doi
+#     doi_array = filtered_df["doi"].to_numpy()
+#     doi_URLs_df = pd.DataFrame(columns=["url"])
+#     doi_URLs_list = []
+#     for doi in doi_array:
+#         initial_url = "https://doi.org/" + doi
+#         redirection_with_doi = requests.get(initial_url, allow_redirects=True)
+#         final_url = redirection_with_doi.url
+#         doi_URLs_list.append(pd.DataFrame({"url": [final_url]}))
+#     doi_URLs_df = pd.concat(doi_URLs_list, ignore_index=True)
+
+#     def extract_base_url(url):
+#         parsed_url = urlparse(url)
+#         return f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+#     print(doi_URLs_df["url"].apply(extract_base_url).value_counts())
+
 
 @click.command()
 @click.option(
@@ -518,6 +547,54 @@ def main(pmPath: Path, oaPath: Path) -> None:
 
     pmDB: Connection = connectToDB(dbPath=absPMPath)
     oaDB: Connection = connectToDB(dbPath=absOAPath)
+
+    oaPaperCountByDOI: int = oa_CountPapersByDOI(oaDB=oaDB)
+    print(
+        "Number of papers with DOIs in OpenAlex:",
+        intcomma(value=oaPaperCountByDOI),
+    )
+
+    oaPaperCountByOAID: int = oa_CountPapersByOAID(oaDB=oaDB)
+    print(
+        "Number of papers with OAIDs in OpenAlex:",
+        intcomma(value=oaPaperCountByOAID),
+    )
+
+    oaCitationCount: int = oa_CountCitations(oaDB=oaDB)
+    print(
+        "Number of citations captured in OpenAlex:",
+        intcomma(value=oaCitationCount),
+    )
+
+    oaProportionOfPapersWithDOIs: float = oa_ProportionOfValidPapers(
+        oaIDCount=oaPaperCountByOAID,
+        oaDOICount=oaPaperCountByDOI,
+    )
+    print(
+        "Proportion of papers with DOIs in OpenAlex:",
+        f"{oaProportionOfPapersWithDOIs * 100}%",
+    )
+
+    pmPaperCountByID: int = pm_CountPapersByID(pmDB=pmDB)
+    print(
+        "Number of papers captured in PeaTMOSS:",
+        intcomma(value=pmPaperCountByID),
+    )
+
+    pmPapersPerJournal: Series = pm_CountPapersPerJournal(pmDB=pmDB)
+    print(
+        "Number of papers per journal in PeaTMOSS:\n",
+        pmPapersPerJournal,
+    )
+
+    pmArxivPapersInOA: int = oapm_CountPMArXivPapersInOA(
+        pmDB=pmDB,
+        oaDB=oaDB,
+    )
+    print(
+        "Number of PeaTMOSS papers captured in OpenAlex that were published in arXiv:",
+        intcomma(value=pmArxivPapersInOA),
+    )
 
 
 if __name__ == "__main__":
