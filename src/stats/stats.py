@@ -1,6 +1,6 @@
 from pathlib import Path
 from sqlite3 import Connection, Cursor
-from typing import Any, Iterator, List
+from typing import Any, Iterable, List
 from urllib.parse import urlparse
 
 import click
@@ -16,29 +16,15 @@ from src.stats import (
     OA_DOI_COUNT,
     OA_OAID_COUNT,
     OAPM_ARXIV_PM_PAPERS_IN_OA,
+    runOneValueSQLQuery,
 )
-
-
-def _runOneValueSQLQuery(db: Connection, query: str) -> Iterator[Any]:
-    """
-    _runOneValueSQLQuery Execute an SQL query that returns one value
-
-    :param db: An sqlite3.Connection object
-    :type db: Connection
-    :param query: A SQLite3 compatible query
-    :type query: str
-    :return: An iterator containing any value
-    :rtype: Iterator[Any]
-    """
-    cursor: Cursor = db.execute(query)
-    return cursor.fetchone()
 
 
 def _createDFGeneratorFromSQL(
     db: Connection,
     query: str,
     chunkSize: int = 10000,
-) -> Iterator[DataFrame]:
+) -> Iterable[DataFrame]:
     """
     _createDFGeneratorFromSQL Return a generator of Pandas DataFrames to process large SQL query results
 
@@ -51,7 +37,7 @@ def _createDFGeneratorFromSQL(
     :return: A generator of Pandas DataFrames
     :rtype: _type_
     :yield: A pandas.DataFrame
-    :rtype: Iterator[DataFrame]
+    :rtype: Iterable[DataFrame]
     """
     return pd.read_sql_query(query, con=db, chunksize=chunkSize)
 
@@ -144,7 +130,7 @@ def oa_CountPapersByDOI(
     else:
         doiCount: int = 0
         query: str = "SELECT DISTINCT doi FROM works"
-        dfs: Iterator[DataFrame] = _createDFGeneratorFromSQL(db=oaDB, query=query)
+        dfs: Iterable[DataFrame] = _createDFGeneratorFromSQL(db=oaDB, query=query)
 
         with Spinner(
             message="Counting number of papers in OpenAlex by DOI...",
@@ -177,7 +163,7 @@ def oa_CountPapersByOAID(
     if returnDefault:
         return OA_OAID_COUNT
     else:
-        return _runOneValueSQLQuery(db=oaDB, query=query)[0]
+        return runOneValueSQLQuery(db=oaDB, query=query)[0]
 
 
 def oa_ProportionOfValidPapers(oaIDCount: int, oaDOICount: int) -> float:
@@ -212,7 +198,7 @@ def oa_CountCitations(
     if returnDefault:
         return OA_CITATION_COUNT
     else:
-        return _runOneValueSQLQuery(db=oaDB, query=query)[0]
+        return runOneValueSQLQuery(db=oaDB, query=query)[0]
 
 
 def oapm_ProportionOfPMPapersInOA(
@@ -260,7 +246,7 @@ def oapm_CountPMArXivPapersInOA(
 
     arxivPMDF: DataFrame = pm_IdentifyPapersPublishedInArXiv(pmDB=pmDB)
 
-    oaDFs: Iterator[DataFrame] = _createDFGeneratorFromSQL(
+    oaDFs: Iterable[DataFrame] = _createDFGeneratorFromSQL(
         db=oaDB,
         query=oaQuery,
     )
@@ -300,11 +286,11 @@ def oapm_CountCitationsOfArXivPMPapers(
     pmDF: DataFrame = pm_IdentifyPapersPublishedInArXiv(pmDB=pmDB)
     pmDF["title"] = pmDF["title"].apply(_standardizeText)
 
-    oaWorksDFs: Iterator[DataFrame] = _createDFGeneratorFromSQL(
+    oaWorksDFs: Iterable[DataFrame] = _createDFGeneratorFromSQL(
         db=oaDB,
         query=worksQuery,
     )
-    oaCitesDFs: Iterator[DataFrame] = _createDFGeneratorFromSQL(
+    oaCitesDFs: Iterable[DataFrame] = _createDFGeneratorFromSQL(
         db=oaDB,
         query=citesQuery,
     )
@@ -343,7 +329,7 @@ def pm_CountPapersByID(pmDB: Connection) -> int:
     :rtype: int
     """
     query: str = "SELECT COUNT(DISTINCT paper_id) FROM model_to_paper"
-    return _runOneValueSQLQuery(db=pmDB, query=query)[0]
+    return runOneValueSQLQuery(db=pmDB, query=query)[0]
 
 
 def pm_CountPapersPerJournal(pmDB: Connection) -> Series:
