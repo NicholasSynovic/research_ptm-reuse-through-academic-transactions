@@ -232,52 +232,6 @@ def oapm_ProportionOfPMPapersInOA(
     return pmPapers / oaPapers
 
 
-def pm_CountPapersByID(pmDB: Connection) -> int:
-    """
-    pm_CountPapersByID Count the number of PeaTMOSS papers by their paper ID
-
-
-    :param pmDB: A sqlite3.Connection to a PeaTMOSS database
-    :type pbDB: Connection
-    :return: The number of papers in a PeaTMOSS database
-    :rtype: int
-    """
-    query: str = "SELECT COUNT(DISTINCT paper_id) FROM model_to_paper"
-    return _runOneValueSQLQuery(db=pmDB, query=query)[0]
-
-
-def pm_CountPapersPerJournal(pmDB: Connection) -> Series:
-    """
-    pm_CountPapersPerJournal Count the number of papers per journal in PeaTMOSS
-
-    :param pmDB: A sqlite3.Connection object to a PeaTMOSS database
-    :type pmDB: Connection
-    :return: A pandas.Series[int] object of the number of papers per journal
-    :rtype: Series[int]
-    """
-    query: str = "SELECT url FROM paper"
-    df: DataFrame = _createDFFromSQL(db=pmDB, query=query)
-    df["url"] = df["url"].apply(_extractNetLoc)
-    return df["url"].value_counts(sort=True, dropna=False)
-
-
-def pm_IdentifyPapersPublishedInArXiv(pmDB: Connection) -> DataFrame:
-    """
-    pm_IdentifyPapersPublishedInArXiv Identify the papers in PeaTMOSS published in arXiv by DOI
-
-    :param pmDB: A sqlite3.Connection object of a PeaTMOSS database
-    :type pmDB: Connection
-    :return: A pandas.DataFrame object of the relevant data for this project
-    :rtype: DataFrame
-    """
-    query: str = "SELECT title, url FROM paper"
-
-    pmDF: DataFrame = _createDFFromSQL(db=pmDB, query=query)
-    pmDF["url"] = pmDF["url"].apply(_convertToArXivDOI)
-
-    return pmDF[pmDF["url"].str.contains("10.48550/arxiv.")]
-
-
 def oapm_CountPMArXivPapersInOA(
     pmDB: Connection,
     oaDB: Connection,
@@ -366,6 +320,52 @@ def oapm_CountCitationsOfArXivPMPapers(
     return pandas.concat(objs=relevantCitesDFs, ignore_index=True)[
         "reference"
     ].value_counts(sort=True)
+
+
+def pm_CountPapersByID(pmDB: Connection) -> int:
+    """
+    pm_CountPapersByID Count the number of PeaTMOSS papers by their paper ID
+
+
+    :param pmDB: A sqlite3.Connection to a PeaTMOSS database
+    :type pbDB: Connection
+    :return: The number of papers in a PeaTMOSS database
+    :rtype: int
+    """
+    query: str = "SELECT COUNT(DISTINCT paper_id) FROM model_to_paper"
+    return _runOneValueSQLQuery(db=pmDB, query=query)[0]
+
+
+def pm_CountPapersPerJournal(pmDB: Connection) -> Series:
+    """
+    pm_CountPapersPerJournal Count the number of papers per journal in PeaTMOSS
+
+    :param pmDB: A sqlite3.Connection object to a PeaTMOSS database
+    :type pmDB: Connection
+    :return: A pandas.Series[int] object of the number of papers per journal
+    :rtype: Series[int]
+    """
+    query: str = "SELECT url FROM paper"
+    df: DataFrame = _createDFFromSQL(db=pmDB, query=query)
+    df["url"] = df["url"].apply(_extractNetLoc)
+    return df["url"].value_counts(sort=True, dropna=False)
+
+
+def pm_IdentifyPapersPublishedInArXiv(pmDB: Connection) -> DataFrame:
+    """
+    pm_IdentifyPapersPublishedInArXiv Identify the papers in PeaTMOSS published in arXiv by DOI
+
+    :param pmDB: A sqlite3.Connection object of a PeaTMOSS database
+    :type pmDB: Connection
+    :return: A pandas.DataFrame object of the relevant data for this project
+    :rtype: DataFrame
+    """
+    query: str = "SELECT title, url FROM paper"
+
+    pmDF: DataFrame = _createDFFromSQL(db=pmDB, query=query)
+    pmDF["url"] = pmDF["url"].apply(_convertToArXivDOI)
+
+    return pmDF[pmDF["url"].str.contains("10.48550/arxiv.")]
 
 
 @click.command()
