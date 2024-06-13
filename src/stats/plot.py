@@ -1,13 +1,13 @@
 import json
+import pickle
 import sqlite3
 from pathlib import Path
 from sqlite3 import Connection
-from typing import Iterator, List
+from string import Template
+from typing import List
 
 import click
 import matplotlib.pyplot as plt
-import pandas as pd
-import requests
 import seaborn
 from humanize import intcomma
 from matplotlib.axes import Axes
@@ -133,6 +133,21 @@ def plot_PMPublicationVenuePaperCount(
     plt.clf()
 
 
+def plot_MostCitedArXivPMPapers(
+    oaDB: Connection, paperCitationCounts: Series, filepath: Path
+) -> None:
+    queryTemplate: Template = Template(
+        template="SELECT doi FROM works WHERE oa_id = '${oaID}'"
+    )
+
+    data: Series = paperCitationCounts[0:5]
+
+    oaID: str
+    for oaID in data.index:
+        query: str = queryTemplate.substitute(oaID=oaID)
+        result: tuple
+
+
 # def PM_DOIs_citedby_OA(top_num_of_models: int):
 #     def standardize_columns(df):
 #         return df.map(lambda x: x.strip().lower() if isinstance(x, str) else x)
@@ -246,7 +261,17 @@ def plot_PMPublicationVenuePaperCount(
     help="Path to OpenAlex database",
     required=True,
 )
-def main(pmPath: Path, oaPath: Path) -> None:
+@click.option(
+    "-a",
+    "--peatmoss-arxiv-citation-count",
+    "pmArxivCitationCount",
+    type=Path,
+    help="Path to pickled PeaTMOSS arXiv Citation Count",
+    required=False,
+    default=Path("pmArXivCitations.pickle"),
+    show_default=True,
+)
+def main(pmPath: Path, oaPath: Path, pmArxivCitationCount: Path) -> None:
     seaborn.set_style(style="darkgrid")
 
     absPMPath: Path = resolvePath(path=pmPath)
@@ -264,6 +289,19 @@ def main(pmPath: Path, oaPath: Path) -> None:
     pmVenueCounts: Series = pm_CountPapersPerJournal(
         pmDB=pmDB,
     )
+
+    pmPaperCitationCounts: Series
+    try:
+        pmPaperCitationCounts = pandas.read_pickle(
+            filepath_or_buffer=pmArxivCitationCount,
+        )
+    except FileNotFoundError:
+        pmPaperCitationCounts = oapm_CountCitationsOfArXivPMPapers(
+            pmDB=pmDB,
+            oaDB=oaDB,
+        )
+        pmPaperCitationCounts.to_pickle(path=pmArxivCitationCount)
+
     plot_PMPublicationVenuePaperCount(
         venuePaperCounts=pmVenueCounts,
         filepath="numberofPeaTMOSSPapersPerVenue.png",
@@ -273,6 +311,12 @@ def main(pmPath: Path, oaPath: Path) -> None:
         oaSize=oaPaperCounts,
         pmSize=pmPaperCounts,
         filepath=Path("comparisonOfDatasetPaperCounts.png"),
+    )
+
+    plot_MostCitedArXivPMPapers(
+        oaDB=oaDB,
+        paperCitationCounts=pmPaperCitationCounts,
+        filepath="test.png",
     )
 
 
