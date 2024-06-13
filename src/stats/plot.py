@@ -133,11 +133,19 @@ def plot_PMPublicationVenuePaperCount(
 def plot_MostCitedArXivPMPapers(
     oaDB: Connection, paperCitationCounts: Series, filepath: Path
 ) -> None:
+    """
+    plot_MostCitedArXivPMPapers Plot the most cited PeaTMOSS models published to arXiv
+
+    :param oaDB: A sqlite3.Connection object for an OpenAlex database
+    :type oaDB: Connection
+    :param paperCitationCounts: A pandas.Series of PeaTMOSS arXiv papers and their citations
+    :type paperCitationCounts: Series
+    :param filepath: A path to save the figure to
+    :type filepath: Path
+    """
     # Top 6 choosen because the 4th entry is a dataset and not a DNN
     data: Series = paperCitationCounts[0:6]
     data.drop(labels=data.index[3], inplace=True)
-
-    # print(data)
 
     # Commented out because it resolves OpenAlex IDs to DOI URLs
     # queryTemplate: Template = Template(
@@ -170,56 +178,6 @@ def plot_MostCitedArXivPMPapers(
     plt.tight_layout()
     plt.savefig(filepath)
     plt.clf()
-
-
-# OA_citing_PM = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/OA_Citing_PM.json"
-
-# OA_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/prod.db"
-# OAconn = sqlite3.Connection(database=OA_file_path)
-
-
-# PM_file_path = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/nature/db/feedStorage/PeaTMOSS.db"
-# PMconn = sqlite3.Connection(database=PM_file_path)
-
-
-# # access PM titles of papers without URLs, cross-ref with OA titles and access those papers' DOIs//new vis for publications of papers with no URLs for underreported/misreported vis
-# # find publications for entries in OA that have no DOI that correspond to entries in PM without URLs by brute force publication identification, still want to vis in underreported/general
-# def unknown_URL_PMpapers_getting_DOI_from_OA(PMconn: Connection, OAconn: Connection):
-#     print("Hello WOrld")
-#     PMquery = f"SELECT title, url FROM paper WHERE (url IS NULL OR url = '')"
-#     PM_titles_nullURLs_df = pd.read_sql_query(PMquery, PMconn)
-
-#     print("hello WOrld")
-#     OAquery = f"SELECT doi, title FROM works WHERE (doi IS NOT NULL)"
-#     OA_titles_df = pd.read_sql_query(OAquery, OAconn)
-
-#     PM_titles_nullURLs_df["title_normalized"] = (
-#         PM_titles_nullURLs_df["title"].str.strip().str.lower()
-#     )
-#     OA_titles_df["title_normalized"] = OA_titles_df["title"].str.strip().str.lower()
-
-#     # Filter OA DataFrame based on  normalized titles in PM_df
-#     print("Hello Oworld")
-#     filtered_df = OA_titles_df[
-#         OA_titles_df["title_normalized"].isin(PM_titles_nullURLs_df["title_normalized"])
-#     ]
-
-#     # return df with redirected urls based on doi
-#     doi_array = filtered_df["doi"].to_numpy()
-#     doi_URLs_df = pd.DataFrame(columns=["url"])
-#     doi_URLs_list = []
-#     for doi in doi_array:
-#         initial_url = "https://doi.org/" + doi
-#         redirection_with_doi = requests.get(initial_url, allow_redirects=True)
-#         final_url = redirection_with_doi.url
-#         doi_URLs_list.append(pd.DataFrame({"url": [final_url]}))
-#     doi_URLs_df = pd.concat(doi_URLs_list, ignore_index=True)
-
-#     def extract_base_url(url):
-#         parsed_url = urlparse(url)
-#         return f"{parsed_url.scheme}://{parsed_url.netloc}"
-
-#     print(doi_URLs_df["url"].apply(extract_base_url).value_counts())
 
 
 @click.command()
