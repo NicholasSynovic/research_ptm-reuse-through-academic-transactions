@@ -1,7 +1,5 @@
 import json
 import sqlite3
-
-# from urllib3 import urlparse
 from pathlib import Path
 from sqlite3 import Connection
 from typing import Iterator, List
@@ -30,7 +28,32 @@ def _humanizeInt(number: int | float) -> str:
     return intcomma(value=number, ndigits=0)
 
 
-def plot_DatasetSizes(oaSize: int, pmSize: int, filepath: Path) -> None:
+def _renameURL(url: str) -> str:
+    url = url.strip()
+
+    if url == "":
+        return "Unknown"
+
+    hostname: str = url.split(".")[0]
+
+    match hostname:
+        case "arxiv":
+            return "arXiv"
+        case "aclanthology":
+            return "ACL\nAnthology"
+        case "github":
+            return "GitHub"
+        case "huggingface":
+            return "Hugging Face"
+        case _:
+            return hostname
+
+
+def plot_DatasetSizes(
+    oaSize: int,
+    pmSize: int,
+    filepath: Path,
+) -> None:
     """
     plot_DatasetSizes Plot the number of papers of OpenAlex and PeaTMOSS
 
@@ -58,6 +81,40 @@ def plot_DatasetSizes(oaSize: int, pmSize: int, filepath: Path) -> None:
         fmt=_humanizeInt,
     )
     plt.savefig(filepath)
+    plt.clf()
+
+
+def plot_PMPublicationVenuePaperCount(
+    venuePaperCounts: Series,
+    filepath: Path,
+) -> None:
+    data: Series = venuePaperCounts.iloc[0:4]
+
+    url: str
+    for url in data.index:
+        data = data.rename({url: _renameURL(url=url)})
+
+    other: int = venuePaperCounts[4:].sum()
+    data["Other"] = other
+    data.sort_values(inplace=True, ascending=False)
+
+    df: DataFrame = DataFrame(data=data)
+    graph: Axes = seaborn.barplot(
+        data=df,
+        x="url",
+        y="count",
+    )
+    plt.title(label="Number of PeaTMOSS Papers per Venue")
+    plt.xlabel(xlabel="Venue", labelpad=7)
+    plt.ylabel(ylabel="Number of Papers")
+    graph.bar_label(
+        container=graph.containers[0],
+        fmt=_humanizeInt,
+    )
+
+    plt.tight_layout()
+    plt.savefig(filepath)
+    plt.clf()
 
 
 # def PM_publication_venues():
@@ -212,6 +269,14 @@ def main(pmPath: Path, oaPath: Path) -> None:
 
     oaPaperCounts: int = oa_CountPapersByDOI(oaDB=oaDB)
     pmPaperCounts: int = pm_CountPapersByID(pmDB=pmDB)
+
+    pmVenueCounts: Series = pm_CountPapersPerJournal(
+        pmDB=pmDB,
+    )
+    plot_PMPublicationVenuePaperCount(
+        venuePaperCounts=pmVenueCounts,
+        filepath="numberofPeaTMOSSPapersPerVenue.png",
+    )
 
     plot_DatasetSizes(
         oaSize=oaPaperCounts,
