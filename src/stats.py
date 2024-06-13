@@ -370,6 +370,9 @@ PMconn = sqlite3.Connection(database=PM_file_path)
 
 
 if __name__ == "__main__":
+    count_papers_per_journalPM(PMconn, PM_file_path)
+    quit()
+
     dataset_comparison()
     quit()
 
