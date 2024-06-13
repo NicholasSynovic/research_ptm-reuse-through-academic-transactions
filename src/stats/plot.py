@@ -19,10 +19,28 @@ from src.stats.stats import *
 
 
 def _humanizeInt(number: int | float) -> str:
+    """
+    _humanizeInt Humanize a number into an interger string
+
+    :param number: A value to humanize
+    :type number: int | float
+    :return: A humanized version of the `number` parameter
+    :rtype: str
+    """
     return intcomma(value=number, ndigits=0)
 
 
 def plot_DatasetSizes(oaSize: int, pmSize: int, filepath: Path) -> None:
+    """
+    plot_DatasetSizes Plot the number of papers of OpenAlex and PeaTMOSS
+
+    :param oaSize: Number of papers in the OpenAlex dataset
+    :type oaSize: int
+    :param pmSize: Number of papers in the PeaTMOSS dataset
+    :type pmSize: int
+    :param filepath: A path to save the output figure
+    :type filepath: Path
+    """
     data: dict[str, List[str | int]] = {
         "x": ["OpenAlex", "PeaTMOSS"],
         "y": [oaSize, pmSize],
@@ -40,46 +58,6 @@ def plot_DatasetSizes(oaSize: int, pmSize: int, filepath: Path) -> None:
         fmt=_humanizeInt,
     )
     plt.savefig(filepath)
-
-
-# def dataset_comparison():
-#     labels = ["OpenAlex Dataset", "PeaTMOSS Dataset"]
-#     values = [7885681, 1937]
-
-#     fig, ax = plt.subplots()
-#     ax.bar(labels, values)
-#     ax.set_xlabel("Dataset")
-#     ax.set_ylabel("Number of Unique Papers")
-#     ax.set_title("Comparison of Paper Counts between OpenAlex & PeaTMOSS")
-#     ax.set_yscale("log")
-#     # ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: '{:.16g}'.format(y)))
-#     plt.savefig("dataset_comparison.png")
-#     plt.show()
-
-#     data = {
-#         "Dataset": ["OpenAlex Dataset", "PeaTMOSS Dataset"],
-#         "Number of Unique Papers": [7885681, 1937],
-#     }
-#     df = pd.DataFrame(data)
-#     sns.set(style="darkgrid")
-
-#     plt.figure(figsize=(10, 6))
-#     bar_plot = sns.barplot(x="Dataset", y="Number of Unique Papers", data=df)
-
-#     # Set the title and labels
-#     bar_plot.set_title("Comparison of Paper Counts betwen OpenAlex & PeaTMOSS")
-#     bar_plot.set_xlabel("Dataset")
-#     bar_plot.set_ylabel("Number of Unique Papers")
-
-#     bar_plot.set_yscale("log")
-
-#     # Rotate x-axis labels if needed
-#     bar_plot.set_xticklabels(
-#         bar_plot.get_xticklabels(), rotation=45, horizontalalignment="right"
-#     )
-
-#     # Save the plot as a PNG file
-#     plt.savefig("dataset_comparison", bbox_inches="tight")
 
 
 # def PM_publication_venues():

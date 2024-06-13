@@ -281,6 +281,16 @@ def oapm_CountCitationsOfArXivPMPapers(
     pmDB: Connection,
     oaDB: Connection,
 ) -> Series:
+    """
+    oapm_CountCitationsOfArXivPMPapers Count the number of OpenAlex papers that cite PeatMOSS arXiv papers
+
+    :param pmDB: A sqlite3.Connection of a PeaTMOSS database
+    :type pmDB: Connection
+    :param oaDB: A sqlite3.Connection of a OpenAlex database
+    :type oaDB: Connection
+    :return: A Series of the number of citations a PeaTMOSS arXiv paper recieved
+    :rtype: Series
+    """
     worksQuery: str = "SELECT oa_id, title FROM works"
     citesQuery: str = "SELECT reference FROM cites"
 
