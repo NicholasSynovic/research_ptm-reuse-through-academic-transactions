@@ -1,6 +1,3 @@
-import json
-import pickle
-import sqlite3
 from pathlib import Path
 from sqlite3 import Connection
 from string import Template
@@ -136,62 +133,43 @@ def plot_PMPublicationVenuePaperCount(
 def plot_MostCitedArXivPMPapers(
     oaDB: Connection, paperCitationCounts: Series, filepath: Path
 ) -> None:
-    queryTemplate: Template = Template(
-        template="SELECT doi FROM works WHERE oa_id = '${oaID}'"
+    # Top 6 choosen because the 4th entry is a dataset and not a DNN
+    data: Series = paperCitationCounts[0:6]
+    data.drop(labels=data.index[3], inplace=True)
+
+    # print(data)
+
+    # Commented out because it resolves OpenAlex IDs to DOI URLs
+    # queryTemplate: Template = Template(
+    #     template="SELECT doi FROM works WHERE oa_id = '${oaID}'"
+    # )
+    # oaID: str
+    # for oaID in data.index:
+    #     query: str = queryTemplate.substitute(oaID=oaID)
+    #     result: str = runOneValueSQLQuery(db=oaDB, query=query)[0]
+
+    #     print(f"https://doi.org/{result}")
+    labels: List[str] = ["ResNeXt", "Transformer-XL", "HRNet", "MAE", "RegNet"]
+    data.index = labels
+
+    df: DataFrame = DataFrame(data=data)
+    df.reset_index(drop=False, inplace=True)
+    graph: Axes = seaborn.barplot(
+        data=df,
+        x="index",
+        y="count",
+    )
+    plt.title(label="Number of Citations per PeaTMOSS Model")
+    plt.xlabel(xlabel="PeaTMOSS Model")
+    plt.ylabel(ylabel="Number of Citations")
+    graph.bar_label(
+        container=graph.containers[0],
+        fmt=_humanizeInt,
     )
 
-    data: Series = paperCitationCounts[0:5]
-
-    oaID: str
-    for oaID in data.index:
-        query: str = queryTemplate.substitute(oaID=oaID)
-        result: tuple
-
-
-# def PM_DOIs_citedby_OA(top_num_of_models: int):
-#     def standardize_columns(df):
-#         return df.map(lambda x: x.strip().lower() if isinstance(x, str) else x)
-
-#     OA_doi_df: Iterator[DataFrame] = createDFGeneratorFromSQL(
-#         OA_file_path, "oa_id, doi", "works", 10000
-#     )
-#     standardized_chunks = []
-#     for chunk in OA_doi_df:
-#         standardized_chunk = standardize_columns(chunk)
-#         standardized_chunks.append(standardized_chunk)
-#     OA_doi_df_stand = pd.concat(standardized_chunks)
-
-#     with open(OA_citing_PM, "r") as f:
-#         citation_data = json.load(f)
-
-#     # JSON -> df
-#     citation_df = pd.DataFrame(
-#         list(citation_data.items()), columns=["oa_id", "citation_count"]
-#     )
-#     citation_df_stand = standardize_columns(citation_df)
-
-#     # putting OA and JSON together based on JSON
-#     filtered_OA_JSON = pd.merge(OA_doi_df_stand, citation_df_stand, on="oa_id")
-#     filtered_OA_JSON_sort = filtered_OA_JSON.sort_values(
-#         by="citation_count", ascending=False
-#     )
-
-#     top_models_df = filtered_OA_JSON_sort.head(top_num_of_models)
-
-#     # bar plot
-#     sns.set(style="darkgrid")
-#     plt.figure(figsize=(10, 6))
-#     sns.barplot(x="doi", y="citation_count", data=top_models_df)
-#     plt.title(
-#         "Top "
-#         + str(top_num_of_models)
-#         + " PeaTMOSS Models by Citation Count".format(top_num_of_models)
-#     )
-#     plt.xlabel("DOI")
-#     plt.ylabel("Number of Citations")
-#     plt.xticks(rotation=45, ha="center")
-#     plt.tight_layout()
-#     plt.savefig("top_PMmodels_cited_byOA", bbox_inches="tight")
+    plt.tight_layout()
+    plt.savefig(filepath)
+    plt.clf()
 
 
 # OA_citing_PM = "/Users/fran-pellegrino/Desktop/ptm-reuse_academic_transactions/research_ptm-reuse-through-academic-transactions/OA_Citing_PM.json"
@@ -316,7 +294,7 @@ def main(pmPath: Path, oaPath: Path, pmArxivCitationCount: Path) -> None:
     plot_MostCitedArXivPMPapers(
         oaDB=oaDB,
         paperCitationCounts=pmPaperCitationCounts,
-        filepath="test.png",
+        filepath="numberOfCitationsPerPMModel.png",
     )
 
 
