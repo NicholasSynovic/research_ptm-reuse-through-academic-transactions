@@ -418,7 +418,7 @@ def oapm_GetDOIsOfOAWorksThatCitePM(
         jsonFilePath: Path = Path(jsonOutputPath, f"{items[0]}.json")
         foo: dict[str, List[str]] = {items[0]: items[1]}
         df: DataFrame = DataFrame(data=foo)
-        df = df[df[items[0]] != "!error"]
+        df = df[~df[items[0]].str.contains(pat="!error")]
         (
             df.sample(
                 frac=1,
