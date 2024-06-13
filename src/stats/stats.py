@@ -1,22 +1,13 @@
-import json
-import pickle
-import sqlite3
-from math import ceil
 from pathlib import Path
 from sqlite3 import Connection, Cursor
 from typing import Any, Iterator, List
-from urllib.parse import ParseResult, urlparse
+from urllib.parse import urlparse
 
 import click
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas
 import pandas as pd
-import requests
-import seaborn as sns
 from humanize import intcomma
 from pandas import DataFrame, Series
-from progress.bar import Bar
 from progress.spinner import Spinner
 from pyfs import isFile, resolvePath
 
@@ -377,6 +368,7 @@ def oapm_CountCitationsOfArXivPMPapers(
     ].value_counts(sort=True)
 
 
+<<<<<<< HEAD
 # def dataset_comparison():
 #     # labels = ['OpenAlex Dataset', 'PeaTMOSS Dataset']
 #     # values = [7885681, 1937]
@@ -850,6 +842,8 @@ if __name__ == "__main__":
 
 >>>>>>> 6e1f054 (Update code)
 
+=======
+>>>>>>> 21ac1a7 (Create plotting file)
 @click.command()
 @click.option(
     "-p",
