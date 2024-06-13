@@ -4,12 +4,13 @@ import sqlite3
 from math import ceil
 from pathlib import Path
 from sqlite3 import Connection, Cursor
-from typing import Any, Iterator
+from typing import Any, Iterator, List
 from urllib.parse import ParseResult, urlparse
 
 import click
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas
 import pandas as pd
 import requests
 import seaborn as sns
@@ -19,7 +20,12 @@ from progress.bar import Bar
 from progress.spinner import Spinner
 from pyfs import isFile, resolvePath
 
-from src.stats import OA_CITATION_COUNT, OA_DOI_COUNT, OA_OAID_COUNT
+from src.stats import (
+    OA_CITATION_COUNT,
+    OA_DOI_COUNT,
+    OA_OAID_COUNT,
+    OAPM_ARXIV_PM_PAPERS_IN_OA,
+)
 
 
 def _runOneValueSQLQuery(db: Connection, query: str) -> Iterator[Any]:
@@ -239,6 +245,7 @@ def pm_CountPapersByID(pmDB: Connection) -> int:
     """
     pm_CountPapersByID Count the number of PeaTMOSS papers by their paper ID
 
+
     :param pmDB: A sqlite3.Connection to a PeaTMOSS database
     :type pbDB: Connection
     :return: The number of papers in a PeaTMOSS database
@@ -263,21 +270,50 @@ def pm_CountPapersPerJournal(pmDB: Connection) -> Series:
     return df["url"].value_counts(sort=True, dropna=False)
 
 
+def pm_IdentifyPapersPublishedInArXiv(pmDB: Connection) -> DataFrame:
+    """
+    pm_IdentifyPapersPublishedInArXiv Identify the papers in PeaTMOSS published in arXiv by DOI
+
+    :param pmDB: A sqlite3.Connection object of a PeaTMOSS database
+    :type pmDB: Connection
+    :return: A pandas.DataFrame object of the relevant data for this project
+    :rtype: DataFrame
+    """
+    query: str = "SELECT title, url FROM paper"
+
+    pmDF: DataFrame = _createDFFromSQL(db=pmDB, query=query)
+    pmDF["url"] = pmDF["url"].apply(_convertToArXivDOI)
+
+    return pmDF[pmDF["url"].str.contains("10.48550/arxiv.")]
+
+
 def oapm_CountPMArXivPapersInOA(
     pmDB: Connection,
     oaDB: Connection,
+    returnDefault: bool = True,
 ) -> int:
+    """
+    oapm_CountPMArXivPapersInOA Count the number of PeaTMOSS arXiv papers in OpenAlex
+
+    arXiv papers are determined by DOI
+
+    :param pmDB: A sqlite3.Connection object of a PeaTMOSS database
+    :type pmDB: Connection
+    :param oaDB: A sqlite3.Connection object of an OpenAlex database
+    :type oaDB: Connection
+    :param returnDefault: Skip computing the value and use the pre-computed value, defaults to True
+    :type returnDefault: bool, optional
+    :return: The number of PeaTMOSS arXiv papers in OpenAlex
+    :rtype: int
+    """
+    if returnDefault:
+        return OAPM_ARXIV_PM_PAPERS_IN_OA
+
     count: int = 0
 
-    pmQuery: str = "SELECT title, url FROM paper"
     oaQuery: str = "SELECT DISTINCT doi FROM works"
 
-    pmDF: DataFrame = _createDFFromSQL(db=pmDB, query=pmQuery)
-
-    pmDF["url"] = pmDF["url"].apply(_convertToArXivDOI)
-    pmDF["title"] = pmDF["title"].apply(_standardizeText)
-
-    arxivPMDF: DataFrame = pmDF[pmDF["url"].str.contains("10.48550/arxiv.")]
+    arxivPMDF: DataFrame = pm_IdentifyPapersPublishedInArXiv(pmDB=pmDB)
 
     oaDFs: Iterator[DataFrame] = _createDFGeneratorFromSQL(
         db=oaDB,
@@ -296,69 +332,49 @@ def oapm_CountPMArXivPapersInOA(
     return count
 
 
-# def total_citations_of_PM_papers():
-#     titleStore: list[DataFrame] = []
-#     citesStore: list[DataFrame] = []
+def oapm_CountCitationsOfArXivPMPapers(
+    pmDB: Connection,
+    oaDB: Connection,
+) -> Series:
+    worksQuery: str = "SELECT oa_id, title FROM works"
+    citesQuery: str = "SELECT reference FROM cites"
 
-#     chunksize: int = 1000
-#     numberOfCitations: int = getNumberOfCitations(OA_file_path)
-#     numberOfWorks: int = getNumberOfWorks(file_path=OA_file_path)
+    relevantWorksDFs: List[DataFrame] = []
+    relevantCitesDFs: List[DataFrame] = []
 
-#     PM_titles_df = create_df_from_db(PM_file_path, "title", "paper")
-#     peatmossDF: DataFrame = standardize_columns(PM_titles_df)
+    pmDF: DataFrame = pm_IdentifyPapersPublishedInArXiv(pmDB=pmDB)
+    pmDF["title"] = pmDF["title"].apply(_standardizeText)
 
-#     OA_titles_df: Iterator[DataFrame] = createDFGeneratorFromSQL(
-#         OA_file_path, "oa_id, title", "works", chunksize=chunksize
-#     )
+    oaWorksDFs: Iterator[DataFrame] = _createDFGeneratorFromSQL(
+        db=oaDB,
+        query=worksQuery,
+    )
+    oaCitesDFs: Iterator[DataFrame] = _createDFGeneratorFromSQL(
+        db=oaDB,
+        query=citesQuery,
+    )
 
-#     with PixelBar(
-#         "Iterating through OA Works table...", max=ceil(numberOfWorks / chunksize)
-#     ) as bar:
-#         df: DataFrame
-#         for df in OA_titles_df:
-#             df.replace(to_replace=" ", value=None, inplace=True)
-#             df.dropna(inplace=True)
-#             df = standardize_columns(df)
-#             titleStore.append(df[df["title"].isin(peatmossDF["title"])])
-#             bar.next()
+    with Spinner(message="Identifying rows with relevant arXiv papers...") as spinner:
+        df: DataFrame
+        for df in oaWorksDFs:
+            df["title"] = df["title"].apply(_standardizeText)
+            relevantWorksDFs.append(df[df["title"].isin(pmDF["title"])])
+            spinner.next()
 
-#     oaTitlesDF: DataFrame = pd.concat(objs=titleStore)
+    oaWorksDF: DataFrame = pandas.concat(
+        objs=relevantWorksDFs,
+        ignore_index=True,
+    )
 
-#     # print(oaTitlesDF)
+    with Spinner(message="Identifying rows that cite arXiv papers...") as spinner:
+        df: DataFrame
+        for df in oaCitesDFs:
+            relevantCitesDFs.append(df[df["reference"].isin(oaWorksDF["oa_id"])])
+            spinner.next()
 
-#     oaCitesDFs: Iterator[DataFrame] = createDFGeneratorFromSQL(
-#         OA_file_path, "work, reference", "cites", chunksize=chunksize * 10
-#     )
-#     with PixelBar(
-#         "Iterating through OA Cites table... ",
-#         max=ceil(numberOfCitations / (chunksize * 10)),
-#     ) as bar:
-#         df: DataFrame
-#         for df in oaCitesDFs:
-#             df = standardize_columns(df)
-#             citesStore.append(df[df["reference"].isin(oaTitlesDF["oa_id"])])
-#             bar.next()
-
-#     oaCitesDF: DataFrame = pd.concat(objs=citesStore)
-
-#     oaCitesDF["reference"].value_counts().to_json(path_or_buf="OA_Citing_PM.json")
-
-#     PMcitesOAStore: list[DataFrame] = []
-#     with PixelBar(
-#         "Iterating through OA Cites table... ",
-#         max=ceil(numberOfCitations / (chunksize * 10)),
-#     ) as bar:
-#         df: DataFrame
-#         for df in oaCitesDFs:
-#             df = standardize_columns(df)
-#             PMcitesOAStore.append(df[df["work"].isin(oaTitlesDF["oa_id"])])
-#             bar.next()
-
-#     oaCitesDF: DataFrame = pd.concat(objs=citesStore)
-
-#     oaCitesDF["work"].value_counts().to_json(path_or_buf="PM_Citing_OA.json")
-
-#     # use name of json file and read json pandas function for stats, functionality within names of json themselves
+    return pandas.concat(objs=relevantCitesDFs, ignore_index=True)[
+        "reference"
+    ].value_counts(sort=True)
 
 
 # def dataset_comparison():
@@ -908,6 +924,8 @@ def main(pmPath: Path, oaPath: Path) -> None:
         "Number of PeaTMOSS papers captured in OpenAlex that were published in arXiv:",
         intcomma(value=pmArxivPapersInOA),
     )
+
+    print(oapm_CountCitationsOfArXivPMPapers(pmDB=pmDB, oaDB=oaDB))
 
 
 if __name__ == "__main__":
