@@ -428,6 +428,7 @@ def oapm_GetDOIsOfOAWorksThatCitePM(
             .iloc[0:10]
             .T.to_json(
                 path_or_buf=jsonFilePath,
+                indent=4,
             )
         )
         print(f"Saved file to: {jsonFilePath}")
