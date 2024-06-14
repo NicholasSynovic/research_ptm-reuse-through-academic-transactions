@@ -25,15 +25,27 @@ from src.stats import NATURE_SUBJECTS
     default=Path("../../data/abstracts"),
     show_default=True,
 )
-def main(abstractDirectory: Path) -> None:
+@click.option(
+    "-o",
+    "--output-dir",
+    "jsonDirectory",
+    required=False,
+    type=Path,
+    help="Path to store JSON output",
+    default=Path("../../data/json"),
+    show_default=True,
+)
+def main(abstractDirectory: Path, jsonDirectory: Path) -> None:
     absAbstractDirectory: Path = resolvePath(path=abstractDirectory)
+    absJSONDirectory: Path = resolvePath(path=jsonDirectory)
 
     assert isDirectory(path=absAbstractDirectory)
+    assert isDirectory(path=absJSONDirectory)
 
     fileData: dict[str, List[str]] = {}
     data: dict[str, List[str]] = {}
 
-    systemPrompt: str = f"Classify text as one of: {','.join(NATURE_SUBJECTS)}"
+    systemPrompt: str = f"Classify the following text as one of the following classes and return only the classification: {','.join(NATURE_SUBJECTS)}"
 
     output_parser = StrOutputParser()
     chatPrompt: ChatPromptTemplate = ChatPromptTemplate.from_messages(
@@ -72,7 +84,10 @@ def main(abstractDirectory: Path) -> None:
                 data[ptm].append(chain.invoke({"input": abstract}))
                 bar.next()
 
-    DataFrame(data=data).T.to_json(path_or_buf="final.json", indent=4)
+    DataFrame(data=data).T.to_json(
+        path_or_buf=Path(absJSONDirectory, "ai_nature_classes.json"),
+        indent=4,
+    )
 
 
 if __name__ == "__main__":
