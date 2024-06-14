@@ -3,6 +3,19 @@
 > Prototyping if it is possible to identify where PTMs are used based on
 > academic citations
 
+## Table of Contents
+
+- [Pre-Trained Model (PTM) Reuse Through Academic Transactions](#pre-trained-model-ptm-reuse-through-academic-transactions)
+  - [Table of Contents](#table-of-contents)
+  - [About](#about)
+  - [How to Install](#how-to-install)
+    - [Dependencies](#dependencies)
+    - [Installation steps](#installation-steps)
+  - [How to Run](#how-to-run)
+    - [Downloading The Data](#downloading-the-data)
+    - [Script Execution Order](#script-execution-order)
+  - [Results](#results)
+
 ## About
 
 This project was a four-week effort by undergraduate members of SSL who were
