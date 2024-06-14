@@ -314,7 +314,7 @@ def plot_AIClassificationOfPMModelUsage(
 )
 @click.option(
     "-a",
-    "--peatmoss-arxiv-citation-count",
+    "--peatmoss-arxiv-citation-count-path",
     "pmArxivCitationCountPath",
     type=Path,
     help="Path to pickled PeaTMOSS arXiv Citation Count",
@@ -324,7 +324,7 @@ def plot_AIClassificationOfPMModelUsage(
 )
 @click.option(
     "-i",
-    "--ai-classification",
+    "--ai-classification-path",
     "aiClassificationPath",
     type=Path,
     help="Path to JSON file of AI classes",
@@ -374,24 +374,35 @@ def main(
 
     plot_PMPublicationVenuePaperCount(
         venuePaperCounts=pmVenueCounts,
-        filepath="numberofPeaTMOSSPapersPerVenue.png",
+        filepath=resolvePath(
+            path=Path("../../data/figs/numberofPeaTMOSSPapersPerVenue.png"),
+        ),
     )
 
     plot_DatasetSizes(
         oaSize=oaPaperCounts,
         pmSize=pmPaperCounts,
-        filepath=Path("comparisonOfDatasetPaperCounts.png"),
+        filepath=resolvePath(
+            path=Path("../../data/figs/comparisonOfDatasetPaperCounts.png"),
+        ),
     )
 
     plot_MostCitedArXivPMPapers(
         oaDB=oaDB,
         paperCitationCounts=pmPaperCitationCounts,
-        filepath="numberOfCitationsPerPMModel.png",
+        filepath=resolvePath(
+            path=Path(
+                "../../data/figs/numberOfCitationsPerPMModel.png",
+            ),
+        ),
     )
 
     aiClassesDF: DataFrame = pandas.read_json(path_or_buf=absAIClassesPath).T
     plot_AIClassificationOfPMModelUsage(
-        aiClasses=aiClassesDF, filepath="numberOfPaperClassificationsPerPMModel.png"
+        aiClasses=aiClassesDF,
+        filepath=resolvePath(
+            path=Path("../../data/figs/numberOfPaperClassificationsPerPMModel.png"),
+        ),
     )
 
 
